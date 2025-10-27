@@ -1,11 +1,21 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
-    
-      content: ["./App.{js,ts,tsx}", "./components/**/*.{js,ts,tsx}"],
-    
-    presets: [require("nativewind/preset")],
-    theme: {
-      extend: {},
-    },
-    plugins: [],
-  }
+  content: [
+    "./src/app/**/*.{js,jsx,ts,tsx}",
+    "./src/features/**/*.{js,jsx,ts,tsx}",
+    "./src/shared/**/*.{js,jsx,ts,tsx}"
+  ],
+  presets: [require("nativewind/preset")],
+  theme: {
+    extend: {
+      fontFamily: {
+        pretendardLight: ["Pretendard-Light"],
+        pretendardRegular: ["Pretendard-Regular"],
+        pretendardMedium: ["Pretendard-Medium"],
+        pretendardSemiBold: ["Pretendard-SemiBold"],
+        pretendardBold: ["Pretendard-Bold"]
+      }
+    }
+  },
+  plugins: []
+}
