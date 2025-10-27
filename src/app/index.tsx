@@ -1,11 +1,22 @@
-import React from "react"
+import React, { useEffect } from 'react';
+import { View, ActivityIndicator } from 'react-native';
+import { Redirect } from 'expo-router';
+import { useAuthStore } from '@/store/auth-store';
 
-import { View, Text } from "react-native"
+export default function Index() {
+  const { isAuthenticated, isHydrated } = useAuthStore();
 
-export default function Home() {
-  return (
-    <View className="flex-1 items-center justify-center bg-white">
-      <Text className="text-3xl font-bold text-gray-800">Welcome to TechLeet</Text>
-    </View>
-  )
+  if (!isHydrated) {
+    return (
+      <View className="flex-1 items-center justify-center bg-white">
+        <ActivityIndicator size="large" color="#2563eb" />
+      </View>
+    );
+  }
+
+  if (isAuthenticated) {
+    return <Redirect href="/(tabs)/dashboard" />;
+  }
+
+  return <Redirect href="/(auth)/sign-in" />;
 }
