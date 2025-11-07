@@ -8,6 +8,11 @@ export default function RecruitmentLayout() {
       }}
     >
       <Stack.Screen name="index" />
+      {/* Each module has its own nested Stack layout */}
+      <Stack.Screen name="jobs" />
+      <Stack.Screen name="candidates" />
+      <Stack.Screen name="interviews" />
+      <Stack.Screen name="applications" />
     </Stack>
   );
 }

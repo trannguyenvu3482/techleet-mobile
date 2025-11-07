@@ -1,6 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { View, Text, TextInput, TouchableOpacity, FlatList, RefreshControl, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { useProtectedRoute } from '@/hooks';
 import { JobCard } from '@/components/ui';
 import { JobPostingDto } from '@/types/recruitment';
@@ -9,6 +10,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function RecruitmentScreen() {
   useProtectedRoute();
+  const router = useRouter();
   const [jobs, setJobs] = useState<JobPostingDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -61,13 +63,11 @@ export default function RecruitmentScreen() {
   };
 
   const handleJobPress = (job: JobPostingDto) => {
-    // TODO: Navigate to job detail
-    console.log('Press job:', job.jobPostingId);
+    router.push(`/recruitment/jobs/detail?id=${job.jobPostingId}`);
   };
 
   const handleEdit = (job: JobPostingDto) => {
-    // TODO: Navigate to edit screen
-    console.log('Edit job:', job.jobPostingId);
+    router.push(`/recruitment/jobs/form?id=${job.jobPostingId}`);
   };
 
   const renderEmpty = () => (
@@ -95,8 +95,54 @@ export default function RecruitmentScreen() {
       <View className="px-4 pt-4 pb-2 bg-white border-b border-gray-200">
         <View className="flex-row items-center mb-3">
           <Text className="text-2xl font-bold text-gray-900 flex-1">Recruitment</Text>
-          <TouchableOpacity className="bg-blue-600 px-4 py-2 rounded-lg">
+          <TouchableOpacity 
+            onPress={() => router.push('/recruitment/jobs/form')}
+            className="bg-blue-600 px-4 py-2 rounded-lg"
+          >
             <Text className="text-white font-semibold">Add Job</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Quick Navigation */}
+        <View className="flex-row gap-2 mb-3 flex-wrap">
+          <TouchableOpacity
+            onPress={() => router.push('/recruitment/applications/index')}
+            className="flex-1 min-w-[30%] bg-orange-50 px-3 py-2 rounded-lg border border-orange-200"
+          >
+            <View className="flex-row items-center justify-center">
+              <Ionicons name="document-text-outline" size={18} color="#f97316" />
+              <Text className="text-sm font-semibold text-orange-600 ml-2">Applications</Text>
+            </View>
+          </TouchableOpacity>
+          
+          <TouchableOpacity
+            onPress={() => router.push('/recruitment/interviews/calendar')}
+            className="flex-1 min-w-[30%] bg-blue-50 px-3 py-2 rounded-lg border border-blue-200"
+          >
+            <View className="flex-row items-center justify-center">
+              <Ionicons name="calendar-outline" size={18} color="#2563eb" />
+              <Text className="text-sm font-semibold text-blue-600 ml-2">Interviews</Text>
+            </View>
+          </TouchableOpacity>
+          
+          <TouchableOpacity
+            onPress={() => router.push('/recruitment/interviews/requests')}
+            className="flex-1 min-w-[30%] bg-purple-50 px-3 py-2 rounded-lg border border-purple-200"
+          >
+            <View className="flex-row items-center justify-center">
+              <Ionicons name="person-add-outline" size={18} color="#8b5cf6" />
+              <Text className="text-sm font-semibold text-purple-600 ml-2">Requests</Text>
+            </View>
+          </TouchableOpacity>
+          
+          <TouchableOpacity
+            onPress={() => router.push('/recruitment/candidates/index')}
+            className="flex-1 min-w-[30%] bg-green-50 px-3 py-2 rounded-lg border border-green-200"
+          >
+            <View className="flex-row items-center justify-center">
+              <Ionicons name="people-outline" size={18} color="#10b981" />
+              <Text className="text-sm font-semibold text-green-600 ml-2">Candidates</Text>
+            </View>
           </TouchableOpacity>
         </View>
 

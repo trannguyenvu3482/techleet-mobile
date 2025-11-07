@@ -190,18 +190,18 @@ export interface CompanyStatisticsDto {
   totalDepartments: number;
   totalPositions: number;
   totalHeadquarters: number;
-  employeesByDepartment: Array<{
+  employeesByDepartment: {
     departmentName: string;
     employeeCount: number;
-  }>;
-  employeesByHeadquarter: Array<{
+  }[];
+  employeesByHeadquarter: {
     headquarterName: string;
     employeeCount: number;
-  }>;
-  employeesByLevel: Array<{
+  }[];
+  employeesByLevel: {
     level: string;
     employeeCount: number;
-  }>;
+  }[];
 }
 
 // API Response Types

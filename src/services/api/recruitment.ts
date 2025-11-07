@@ -297,6 +297,38 @@ export interface GetInterviewsResponse {
   totalPages: number;
 }
 
+// Examination Types
+export interface Examination {
+  examinationId: number;
+  applicationId: number;
+  sourceSetId?: number;
+  status?: string;
+  submittedAt?: string | null;
+  totalScore?: number | null;
+  createdAt?: string;
+  updatedAt?: string;
+  examQuestions?: ExamQuestion[];
+}
+
+export interface ExamQuestion {
+  examinationQuestionId: number;
+  examinationId: number;
+  questionId: number;
+  answerText?: string | null;
+  score?: number | null;
+  reason?: string | null;
+  question?: {
+    questionId: number;
+    content: string;
+    sampleAnswer?: string;
+    difficulty: string;
+    createdAt?: string;
+    updatedAt?: string;
+  };
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 // CV Screening Types
 export interface CvTestRequest {
   filePath: string;
@@ -319,8 +351,8 @@ export interface CvTestResult {
       certifications: string[];
     };
     experienceYears: number;
-    education: Array<Record<string, unknown>>;
-    workExperience: Array<Record<string, unknown>>;
+    education: Record<string, unknown>[];
+    workExperience: Record<string, unknown>[];
   };
   scores: {
     overallScore: number;
@@ -462,11 +494,15 @@ export const recruitmentAPI = {
 
   async uploadCandidateResume(
     candidateId: number,
-    file: File
+    fileUri: string,
+    fileName: string,
+    fileType: string
   ): Promise<{ resumeUrl: string }> {
     return api.upload(
       `/api/v1/recruitment-service/candidates/${candidateId}/resume`,
-      file
+      fileUri,
+      fileName,
+      fileType
     );
   },
 
@@ -486,11 +522,13 @@ export const recruitmentAPI = {
   async getApplicationById(
     applicationId: number
   ): Promise<{ application: Application; candidate: Candidate }> {
-    return api.get(`/api/v1/recruitment-service/applications/${applicationId}`);
+    // Ensure applicationId is converted to a string for the route parameter
+    // ParseIntPipe expects a numeric string
+    return api.get(`/api/v1/recruitment-service/applications/${String(applicationId)}`);
   },
 
   async getApplicationsByJobId(jobId: number): Promise<{ 
-    data: Array<{
+    data: {
       applicationId: number;
       candidateId: number;
       firstName: string;
@@ -499,7 +537,7 @@ export const recruitmentAPI = {
       status: string;
       createdAt: string;
       score: number | null;
-    }>
+    }[]
   }> {
     return api.get(`/api/v1/recruitment-service/applications/job/${jobId}`);
   },
@@ -526,19 +564,54 @@ export const recruitmentAPI = {
     );
   },
 
+  async approveApplicationAfterInterview(
+    applicationId: number,
+    data: {
+      offeredSalary: number;
+      expectedStartDate: string;
+      offerExpiryDate?: string;
+    }
+  ): Promise<Application> {
+    return api.post(
+      `/api/v1/recruitment-service/applications/${String(applicationId)}/approve`,
+      data
+    );
+  },
+
+  async rejectApplicationAfterInterview(
+    applicationId: number,
+    data?: {
+      rejectionReason?: string;
+    }
+  ): Promise<Application> {
+    return api.post(
+      `/api/v1/recruitment-service/applications/${String(applicationId)}/reject`,
+      data || {}
+    );
+  },
+
   // Interview Management
+  async getInterviewRequests(params?: {
+    page?: number;
+    limit?: number;
+    jobPostingId?: number;
+    minScreeningScore?: number;
+  }): Promise<GetApplicationsResponse> {
+    return api.get("/api/v1/recruitment-service/applications/interview-requests", params);
+  },
+
   async getInterviews(
     params: GetInterviewsParams = {}
   ): Promise<GetInterviewsResponse> {
-    return api.get("/api/v1/recruitment-service/interviews", params);
+    return api.get("/api/v1/recruitment-service/interview", params);
   },
 
   async getInterviewById(interviewId: number): Promise<Interview> {
-    return api.get(`/api/v1/recruitment-service/interviews/${interviewId}`);
+    return api.get(`/api/v1/recruitment-service/interview/${interviewId}`);
   },
 
   async createInterview(data: CreateInterviewRequest): Promise<Interview> {
-    return api.post("/api/v1/recruitment-service/interviews", data);
+    return api.post("/api/v1/recruitment-service/interview", data);
   },
 
   async updateInterview(
@@ -546,13 +619,13 @@ export const recruitmentAPI = {
     data: UpdateInterviewRequest
   ): Promise<Interview> {
     return api.patch(
-      `/api/v1/recruitment-service/interviews/${interviewId}`,
+      `/api/v1/recruitment-service/interview/${interviewId}`,
       data
     );
   },
 
   async deleteInterview(interviewId: number): Promise<void> {
-    return api.delete(`/api/v1/recruitment-service/interviews/${interviewId}`);
+    return api.delete(`/api/v1/recruitment-service/interview/${interviewId}`);
   },
 
   async completeInterview(
@@ -610,5 +683,25 @@ export const recruitmentAPI = {
       jobTitle: app.jobPosting?.title || "Unknown Position",
       appliedDate: app.appliedAt,
     }));
+  },
+
+  // Examination Management
+  async getExaminationsToDo(applicationId: number): Promise<Examination[]> {
+    return api.get(`/api/v1/recruitment-service/question/examinations/todo/${applicationId}`);
+  },
+
+  async getExaminationDetail(examinationId: number): Promise<Examination> {
+    return api.get(`/api/v1/recruitment-service/question/examinations/${examinationId}`);
+  },
+
+  async updateExamScore(examQuestionId: number, score: number, reason?: string): Promise<void> {
+    return api.put(`/api/v1/recruitment-service/question/examinations/score/${examQuestionId}`, {
+      score,
+      reason,
+    });
+  },
+
+  async revaluateExamination(examinationId: number): Promise<Examination> {
+    return api.post(`/api/v1/recruitment-service/question/examinations/${examinationId}/revaluate`);
   },
 };
