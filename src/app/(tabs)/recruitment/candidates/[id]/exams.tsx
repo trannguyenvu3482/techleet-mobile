@@ -150,7 +150,7 @@ export default function CandidateExamsScreen() {
 
   if (loading) {
     return (
-      <View className="flex-1 bg-gray-50">
+      <View className="flex-1 bg-gray-50" style={{ paddingTop: insets.top }}>
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator size="large" color="#2563eb" />
           <Text className="text-gray-500 mt-4">Loading examinations...</Text>

@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Picker } from '@react-native-picker/picker';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import {
@@ -28,6 +28,7 @@ import { companyAPI, Headquarter } from '@/services/api/company';
 export default function InterviewFormScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ id?: string; applicationId?: string }>();
+  const insets = useSafeAreaInsets();
   const isEdit = !!params.id;
 
   const [loading, setLoading] = useState(true);
@@ -238,17 +239,17 @@ export default function InterviewFormScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView className="flex-1 bg-gray-50">
+      <View className="flex-1 bg-gray-50">
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator size="large" color="#2563eb" />
           <Text className="text-gray-500 mt-4">Loading form data...</Text>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50">
+    <View className="flex-1 bg-gray-50" style={{ paddingTop: insets.top }}>
       {/* Header */}
       <View className="bg-white border-b border-gray-200 px-4 py-3">
         <View className="flex-row items-center justify-between mb-3">
@@ -493,7 +494,7 @@ export default function InterviewFormScreen() {
           )}
         </TouchableOpacity>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 

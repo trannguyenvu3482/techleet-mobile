@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { recruitmentAPI, Application, Candidate } from '@/services/api/recruitment';
 import { ApproveOfferModal } from '@/components/recruitment/approve-offer-modal';
 import { RejectApplicationModal } from '@/components/recruitment/reject-application-modal';
@@ -17,6 +17,7 @@ import { RejectApplicationModal } from '@/components/recruitment/reject-applicat
 export default function ApplicationDetailScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ id: string }>();
+  const insets = useSafeAreaInsets();
   const [application, setApplication] = useState<Application | null>(null);
   const [candidate, setCandidate] = useState<Candidate | null>(null);
   const [loading, setLoading] = useState(true);
@@ -68,11 +69,11 @@ export default function ApplicationDetailScreen() {
   // Don't render anything if we shouldn't be here or ID is invalid
   if (shouldNotBeHere || !isValidId) {
     return (
-      <SafeAreaView className="flex-1 bg-gray-50">
+      <View className="flex-1 bg-gray-50" style={{ paddingTop: insets.top }}>
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator size="large" color="#2563eb" />
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
@@ -163,18 +164,18 @@ export default function ApplicationDetailScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView className="flex-1 bg-gray-50">
+      <View className="flex-1 bg-gray-50" style={{ paddingTop: insets.top }}>
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator size="large" color="#2563eb" />
           <Text className="text-gray-500 mt-4">Loading application details...</Text>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   if (!application) {
     return (
-      <SafeAreaView className="flex-1 bg-gray-50">
+      <View className="flex-1 bg-gray-50" style={{ paddingTop: insets.top }}>
         <View className="flex-1 items-center justify-center px-4">
           <Ionicons name="alert-circle-outline" size={64} color="#9ca3af" />
           <Text className="text-lg font-semibold text-gray-500 mt-4">
@@ -187,12 +188,12 @@ export default function ApplicationDetailScreen() {
             <Text className="text-white font-semibold">Go Back</Text>
           </TouchableOpacity>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50">
+    <View className="flex-1 bg-gray-50" style={{ paddingTop: insets.top }}>
       {/* Header */}
       <View className="bg-white border-b border-gray-200 px-4 py-3">
         <View className="flex-row items-center justify-between mb-3">
@@ -377,7 +378,7 @@ export default function ApplicationDetailScreen() {
           fetchApplication(application.applicationId);
         }}
       />
-    </SafeAreaView>
+    </View>
   );
 }
 
