@@ -1,17 +1,15 @@
 import { Stack } from 'expo-router';
 
-export default function InterviewsLayout() {
+export default function QuestionSetsLayout() {
   return (
     <Stack
       screenOptions={{
         headerShown: false,
       }}
     >
-      <Stack.Screen name="calendar" />
-      <Stack.Screen name="requests" />
+      <Stack.Screen name="index" />
       <Stack.Screen name="form" />
       <Stack.Screen name="[id]/index" />
-      <Stack.Screen name="[id]/notes" />
     </Stack>
   );
 }

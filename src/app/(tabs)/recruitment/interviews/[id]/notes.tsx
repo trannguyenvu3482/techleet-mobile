@@ -11,6 +11,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { recruitmentAPI, Interview } from '@/services/api/recruitment';
+import { ApproveOfferModal } from '@/components/recruitment/approve-offer-modal';
+import { RejectApplicationModal } from '@/components/recruitment/reject-application-modal';
 
 export default function InterviewNotesScreen() {
   const router = useRouter();
@@ -18,6 +20,8 @@ export default function InterviewNotesScreen() {
   const [interview, setInterview] = useState<Interview | null>(null);
   const [loading, setLoading] = useState(true);
   const [applicationStatus, setApplicationStatus] = useState<string | null>(null);
+  const [showApproveDialog, setShowApproveDialog] = useState(false);
+  const [showRejectDialog, setShowRejectDialog] = useState(false);
 
   const fetchInterview = useCallback(async (interviewId: number) => {
     try {
@@ -78,14 +82,26 @@ export default function InterviewNotesScreen() {
 
   const handleApprove = () => {
     if (!interview || !interview.applicationId) return;
-    Alert.alert('Info', 'Approve functionality - navigate to approve dialog');
-    // TODO: Navigate to approve dialog or implement inline approval
+    setShowApproveDialog(true);
   };
 
   const handleReject = () => {
     if (!interview || !interview.applicationId) return;
-    Alert.alert('Info', 'Reject functionality - navigate to reject dialog');
-    // TODO: Navigate to reject dialog or implement inline rejection
+    setShowRejectDialog(true);
+  };
+
+  const handleApproveSuccess = () => {
+    setShowApproveDialog(false);
+    if (interview) {
+      fetchInterview(interview.interviewId);
+    }
+  };
+
+  const handleRejectSuccess = () => {
+    setShowRejectDialog(false);
+    if (interview) {
+      fetchInterview(interview.interviewId);
+    }
   };
 
   const formatDateTime = (dateString: string) => {
@@ -321,6 +337,26 @@ export default function InterviewNotesScreen() {
           )}
         </View>
       </ScrollView>
+
+      {/* Approve Dialog */}
+      {interview.applicationId && (
+        <>
+          <ApproveOfferModal
+            visible={showApproveDialog}
+            onClose={() => setShowApproveDialog(false)}
+            applicationId={interview.applicationId}
+            onSuccess={handleApproveSuccess}
+          />
+
+          {/* Reject Dialog */}
+          <RejectApplicationModal
+            visible={showRejectDialog}
+            onClose={() => setShowRejectDialog(false)}
+            applicationId={interview.applicationId}
+            onSuccess={handleRejectSuccess}
+          />
+        </>
+      )}
     </SafeAreaView>
   );
 }

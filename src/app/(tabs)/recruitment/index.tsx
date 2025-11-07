@@ -144,6 +144,26 @@ export default function RecruitmentScreen() {
               <Text className="text-sm font-semibold text-green-600 ml-2">Candidates</Text>
             </View>
           </TouchableOpacity>
+          
+          <TouchableOpacity
+            onPress={() => router.push('/recruitment/questions/index')}
+            className="flex-1 min-w-[30%] bg-indigo-50 px-3 py-2 rounded-lg border border-indigo-200"
+          >
+            <View className="flex-row items-center justify-center">
+              <Ionicons name="help-circle-outline" size={18} color="#6366f1" />
+              <Text className="text-sm font-semibold text-indigo-600 ml-2">Questions</Text>
+            </View>
+          </TouchableOpacity>
+          
+          <TouchableOpacity
+            onPress={() => router.push('/recruitment/question-sets')}
+            className="flex-1 min-w-[30%] bg-pink-50 px-3 py-2 rounded-lg border border-pink-200"
+          >
+            <View className="flex-row items-center justify-center">
+              <Ionicons name="folder-outline" size={18} color="#ec4899" />
+              <Text className="text-sm font-semibold text-pink-600 ml-2">Question Sets</Text>
+            </View>
+          </TouchableOpacity>
         </View>
 
         {/* Search Bar */}

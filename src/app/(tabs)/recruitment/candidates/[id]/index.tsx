@@ -79,7 +79,13 @@ export default function CandidateDetailScreen() {
   };
 
   const handleScheduleInterview = (application?: Application) => {
-    Alert.alert('Info', 'Schedule interview feature coming soon');
+    if (application && application.applicationId) {
+      router.push(`/recruitment/interviews/form?applicationId=${application.applicationId}`);
+    } else if (applications.length > 0) {
+      router.push(`/recruitment/interviews/form?applicationId=${applications[0].applicationId}`);
+    } else {
+      Alert.alert('Info', 'No applications found for this candidate');
+    }
   };
 
   const handleOpenUrl = (url: string) => {
