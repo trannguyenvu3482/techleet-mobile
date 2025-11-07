@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { recruitmentAPI, Candidate, GetCandidatesParams , JobPosting } from '@/services/api/recruitment';
 
 interface CandidateListItem {
@@ -29,19 +29,29 @@ interface CandidateListItem {
 export default function CandidateListScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ jobId?: string }>();
+  const insets = useSafeAreaInsets();
   const [candidates, setCandidates] = useState<CandidateListItem[]>([]);
   const [jobs, setJobs] = useState<JobPosting[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [jobFilter, setJobFilter] = useState<string>(params.jobId || 'all');
+  const [sortBy, setSortBy] = useState<'candidateId' | 'firstName' | 'lastName' | 'appliedDate' | 'yearsOfExperience' | 'expectedSalary'>('candidateId');
+  const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC'>('DESC');
+  const [showFilters, setShowFilters] = useState(false);
+  const [page, setPage] = useState(0);
+  const [total, setTotal] = useState(0);
+  const limit = 20;
 
-  const fetchCandidates = useCallback(async (keyword?: string, jobId?: string) => {
+  const fetchCandidates = useCallback(async (keyword?: string, jobId?: string, append = false) => {
     try {
-      setLoading(true);
+      if (!append) {
+        setLoading(true);
+      }
       
       if (jobId && jobId !== 'all') {
-        // Fetch candidates by job posting
+        // Fetch candidates by job posting - this doesn't support pagination yet
+        // So we'll fetch all and paginate client-side
         const response = await recruitmentAPI.getApplicationsByJobId(Number(jobId));
         const candidateList: CandidateListItem[] = response.data.map((app) => ({
           candidateId: app.candidateId,
@@ -64,12 +74,25 @@ export default function CandidateListScreen() {
           );
         }
         
-        setCandidates(filtered);
+        // Client-side pagination
+        const start = page * limit;
+        const end = start + limit;
+        const paginated = filtered.slice(start, end);
+        
+        if (append) {
+          setCandidates((prev) => [...prev, ...paginated]);
+        } else {
+          setCandidates(paginated);
+        }
+        setTotal(filtered.length);
       } else {
-        // Fetch all candidates
+        // Fetch all candidates with pagination
         const params: GetCandidatesParams = {
-          limit: 100,
+          page,
+          limit,
           keyword: keyword,
+          sortBy,
+          sortOrder,
         };
         const response = await recruitmentAPI.getCandidates(params);
         
@@ -81,7 +104,12 @@ export default function CandidateListScreen() {
           createdAt: candidate.createdAt,
         }));
         
-        setCandidates(candidateList);
+        if (append) {
+          setCandidates((prev) => [...prev, ...candidateList]);
+        } else {
+          setCandidates(candidateList);
+        }
+        setTotal(response.total || response.data.length);
       }
     } catch (error) {
       console.error('Error fetching candidates:', error);
@@ -90,7 +118,7 @@ export default function CandidateListScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [page, sortBy, sortOrder]);
 
   const fetchJobs = useCallback(async () => {
     try {
@@ -108,24 +136,42 @@ export default function CandidateListScreen() {
   useEffect(() => {
     const keyword = searchTerm.trim() || undefined;
     const jobId = jobFilter !== 'all' ? jobFilter : undefined;
-    fetchCandidates(keyword, jobId);
-  }, [jobFilter, fetchCandidates]);
+    if (page === 0) {
+      fetchCandidates(keyword, jobId, false);
+    } else {
+      fetchCandidates(keyword, jobId, true);
+    }
+  }, [page, jobFilter, sortBy, sortOrder, fetchCandidates]);
+
+  // Debounce search effect
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (page === 0) {
+        const keyword = searchTerm.trim() || undefined;
+        const jobId = jobFilter !== 'all' ? jobFilter : undefined;
+        fetchCandidates(keyword, jobId, false);
+      }
+    }, 500);
+    return () => clearTimeout(timeoutId);
+  }, [searchTerm]);
 
   const onRefresh = () => {
     setRefreshing(true);
+    setPage(0);
     const keyword = searchTerm.trim() || undefined;
     const jobId = jobFilter !== 'all' ? jobFilter : undefined;
-    fetchCandidates(keyword, jobId);
+    fetchCandidates(keyword, jobId, false);
+  };
+
+  const handleLoadMore = () => {
+    if (candidates.length < total && !loading) {
+      setPage((prev) => prev + 1);
+    }
   };
 
   const handleSearch = (text: string) => {
     setSearchTerm(text);
-    // Debounce search
-    setTimeout(() => {
-      const keyword = text.trim() || undefined;
-      const jobId = jobFilter !== 'all' ? jobFilter : undefined;
-      fetchCandidates(keyword, jobId);
-    }, 500);
+    setPage(0);
   };
 
   const handleCandidatePress = (candidate: CandidateListItem) => {
@@ -233,17 +279,17 @@ export default function CandidateListScreen() {
 
   if (loading && candidates.length === 0) {
     return (
-      <SafeAreaView className="flex-1 bg-gray-50">
+      <View className="flex-1 bg-gray-50" style={{ paddingTop: insets.top }}>
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator size="large" color="#2563eb" />
           <Text className="text-gray-500 mt-4">Loading candidates...</Text>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50">
+    <View className="flex-1 bg-gray-50" style={{ paddingTop: insets.top }}>
       {/* Header */}
       <View className="px-4 pt-4 pb-2 bg-white border-b border-gray-200">
         <View className="flex-row items-center mb-3">
@@ -275,31 +321,37 @@ export default function CandidateListScreen() {
 
         {/* Job Filter */}
         {jobs.length > 0 && (
-          <View className="flex-row gap-2 mb-2">
+          <View className="flex-row gap-2 mb-2 flex-wrap">
             <TouchableOpacity
-              onPress={() => setJobFilter('all')}
-              className={`px-3 py-2 rounded-lg ${
-                jobFilter === 'all' ? 'bg-blue-600' : 'bg-gray-100'
+            onPress={() => {
+              setJobFilter('all');
+              setPage(0);
+            }}
+            className={`px-3 py-2 rounded-lg ${
+              jobFilter === 'all' ? 'bg-blue-600' : 'bg-gray-100'
+            }`}
+          >
+            <Text
+              className={`text-xs font-semibold ${
+                jobFilter === 'all' ? 'text-white' : 'text-gray-600'
               }`}
             >
-              <Text
-                className={`text-xs font-semibold ${
-                  jobFilter === 'all' ? 'text-white' : 'text-gray-600'
-                }`}
-              >
-                All
-              </Text>
-            </TouchableOpacity>
-            {jobs.map((job) => (
-              <TouchableOpacity
-                key={job.jobPostingId}
-                onPress={() => setJobFilter(job.jobPostingId.toString())}
-                className={`px-3 py-2 rounded-lg ${
-                  jobFilter === job.jobPostingId.toString()
-                    ? 'bg-blue-600'
-                    : 'bg-gray-100'
-                }`}
-              >
+              All
+            </Text>
+          </TouchableOpacity>
+          {jobs.map((job) => (
+            <TouchableOpacity
+              key={job.jobPostingId}
+              onPress={() => {
+                setJobFilter(job.jobPostingId.toString());
+                setPage(0);
+              }}
+              className={`px-3 py-2 rounded-lg ${
+                jobFilter === job.jobPostingId.toString()
+                  ? 'bg-blue-600'
+                  : 'bg-gray-100'
+              }`}
+            >
                 <Text
                   className={`text-xs font-semibold ${
                     jobFilter === job.jobPostingId.toString()
@@ -315,6 +367,76 @@ export default function CandidateListScreen() {
             ))}
           </View>
         )}
+
+        {/* Filters Toggle */}
+        <TouchableOpacity
+          onPress={() => setShowFilters(!showFilters)}
+          className="flex-row items-center justify-between bg-gray-100 px-4 py-3 rounded-lg mb-2"
+        >
+          <View className="flex-row items-center">
+            <Ionicons name="filter-outline" size={18} color="#6b7280" />
+            <Text className="text-sm font-semibold text-gray-700 ml-2">Filters & Sort</Text>
+          </View>
+          <Ionicons
+            name={showFilters ? 'chevron-up' : 'chevron-down'}
+            size={20}
+            color="#6b7280"
+          />
+        </TouchableOpacity>
+
+        {/* Filters & Sort Options (Collapsible) */}
+        {showFilters && (
+          <View className="bg-gray-50 rounded-lg p-3 mb-2 border border-gray-200">
+            {/* Sort Options */}
+            <View className="mb-3">
+              <Text className="text-xs font-semibold text-gray-700 mb-2">Sort By:</Text>
+              <View className="flex-row gap-2 flex-wrap">
+                {[
+                  { value: 'candidateId', label: 'ID' },
+                  { value: 'firstName', label: 'First Name' },
+                  { value: 'lastName', label: 'Last Name' },
+                  { value: 'appliedDate', label: 'Applied Date' },
+                  { value: 'yearsOfExperience', label: 'Experience' },
+                  { value: 'expectedSalary', label: 'Salary' },
+                ].map((option) => (
+                  <TouchableOpacity
+                    key={option.value}
+                    onPress={() => {
+                      if (sortBy === option.value) {
+                        setSortOrder(sortOrder === 'ASC' ? 'DESC' : 'ASC');
+                      } else {
+                        setSortBy(option.value as any);
+                        setSortOrder('DESC');
+                      }
+                      setPage(0);
+                    }}
+                    className={`px-3 py-2 rounded-lg ${
+                      sortBy === option.value ? 'bg-orange-600' : 'bg-white'
+                    }`}
+                  >
+                    <View className="flex-row items-center">
+                      <Text
+                        className={`text-xs font-semibold ${
+                          sortBy === option.value ? 'text-white' : 'text-gray-600'
+                        }`}
+                      >
+                        {option.label}
+                      </Text>
+                      {sortBy === option.value && (
+                        <Ionicons
+                          name={sortOrder === 'ASC' ? 'arrow-up' : 'arrow-down'}
+                          size={14}
+                          color="white"
+                          style={{ marginLeft: 4 }}
+                        />
+                      )}
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          </View>
+        )}
       </View>
 
       {/* Candidates List */}
@@ -327,8 +449,27 @@ export default function CandidateListScreen() {
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
+        ListFooterComponent={
+          candidates.length < total && candidates.length > 0 ? (
+            <View className="py-4">
+              <TouchableOpacity
+                onPress={handleLoadMore}
+                disabled={loading}
+                className={`bg-blue-600 px-4 py-2 rounded-lg items-center ${
+                  loading ? 'opacity-50' : ''
+                }`}
+              >
+                {loading ? (
+                  <ActivityIndicator size="small" color="white" />
+                ) : (
+                  <Text className="text-white font-semibold">Load More</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          ) : null
+        }
       />
-    </SafeAreaView>
+    </View>
   );
 }
 

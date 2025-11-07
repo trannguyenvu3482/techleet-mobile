@@ -12,12 +12,13 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { recruitmentAPI, QuestionSet, Question, QuestionSetItem } from '@/services/api/recruitment';
 
 export default function QuestionSetDetailScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ id: string }>();
+  const insets = useSafeAreaInsets();
   const [questionSet, setQuestionSet] = useState<QuestionSet | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -202,38 +203,38 @@ export default function QuestionSetDetailScreen() {
 
   if (!isValidId) {
     return (
-      <SafeAreaView className="flex-1 bg-gray-50">
+      <View className="flex-1 bg-gray-50" style={{ paddingTop: insets.top }}>
         <View className="flex-1 justify-center items-center">
           <ActivityIndicator size="large" color="#2563eb" />
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   if (loading) {
     return (
-      <SafeAreaView className="flex-1 bg-gray-50">
+      <View className="flex-1 bg-gray-50" style={{ paddingTop: insets.top }}>
         <View className="flex-1 justify-center items-center">
           <ActivityIndicator size="large" color="#2563eb" />
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   if (!questionSet) {
     return (
-      <SafeAreaView className="flex-1 bg-gray-50">
+      <View className="flex-1 bg-gray-50" style={{ paddingTop: insets.top }}>
         <View className="flex-1 justify-center items-center">
           <Text className="text-gray-500">Question set not found</Text>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   const questions = questionSet.questionSetItems || [];
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50">
+    <View className="flex-1 bg-gray-50" style={{ paddingTop: insets.top }}>
       <View className="flex-1">
         {/* Header */}
         <View className="bg-white px-4 py-3 border-b border-gray-200 flex-row items-center justify-between">
@@ -309,7 +310,7 @@ export default function QuestionSetDetailScreen() {
           presentationStyle="pageSheet"
           onRequestClose={() => setShowAddModal(false)}
         >
-          <SafeAreaView className="flex-1 bg-gray-50">
+          <View className="flex-1 bg-gray-50" style={{ paddingTop: insets.top }}>
             <View className="flex-1">
               {/* Modal Header */}
               <View className="bg-white px-4 py-3 border-b border-gray-200 flex-row items-center justify-between">
@@ -417,10 +418,10 @@ export default function QuestionSetDetailScreen() {
                 </TouchableOpacity>
               </View>
             </View>
-          </SafeAreaView>
+          </View>
         </Modal>
       </View>
-    </SafeAreaView>
+    </View>
   );
 }
 

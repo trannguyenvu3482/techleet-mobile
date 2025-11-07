@@ -527,7 +527,7 @@ export const recruitmentAPI = {
   },
 
   async getCandidateById(candidateId: number): Promise<Candidate> {
-    return api.get(`/api/v1/recruitment-service/candidates/${candidateId}`);
+    return api.get(`/api/v1/recruitment-service/candidates/${String(candidateId)}`);
   },
 
   async createCandidate(data: CreateCandidateRequest): Promise<Candidate> {
@@ -539,13 +539,13 @@ export const recruitmentAPI = {
     data: UpdateCandidateRequest
   ): Promise<Candidate> {
     return api.patch(
-      `/api/v1/recruitment-service/candidates/${candidateId}`,
+      `/api/v1/recruitment-service/candidates/${String(candidateId)}`,
       data
     );
   },
 
   async deleteCandidate(candidateId: number): Promise<void> {
-    return api.delete(`/api/v1/recruitment-service/candidates/${candidateId}`);
+    return api.delete(`/api/v1/recruitment-service/candidates/${String(candidateId)}`);
   },
 
   async uploadCandidateResume(
@@ -555,7 +555,7 @@ export const recruitmentAPI = {
     fileType: string
   ): Promise<{ resumeUrl: string }> {
     return api.upload(
-      `/api/v1/recruitment-service/candidates/${candidateId}/resume`,
+      `/api/v1/recruitment-service/candidates/${String(candidateId)}/resume`,
       fileUri,
       fileName,
       fileType
@@ -564,7 +564,7 @@ export const recruitmentAPI = {
 
   async getCandidateFiles(candidateId: number): Promise<CandidateFile[]> {
     return api.get(
-      `/api/v1/recruitment-service/files/candidate/${candidateId}`
+      `/api/v1/recruitment-service/files/candidate/${String(candidateId)}`
     );
   },
 

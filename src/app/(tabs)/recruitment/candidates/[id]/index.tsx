@@ -10,12 +10,13 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { recruitmentAPI, Candidate, Application, CandidateFile } from '@/services/api/recruitment';
 
 export default function CandidateDetailScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ id: string }>();
+  const insets = useSafeAreaInsets();
   const [candidate, setCandidate] = useState<Candidate | null>(null);
   const [applications, setApplications] = useState<Application[]>([]);
   const [files, setFiles] = useState<CandidateFile[]>([]);
@@ -25,7 +26,21 @@ export default function CandidateDetailScreen() {
   const fetchCandidate = useCallback(async (candidateId: number) => {
     try {
       setLoading(true);
+      console.log('Fetching candidate with ID:', candidateId);
       const candidateData = await recruitmentAPI.getCandidateById(candidateId);
+      console.log('Candidate data received:', JSON.stringify(candidateData, null, 2));
+      
+      if (!candidateData || (typeof candidateData === 'object' && Object.keys(candidateData).length === 0)) {
+        console.error('Candidate data is null, undefined, or empty');
+        throw new Error('Candidate not found');
+      }
+      
+      // Check if candidateData has required fields
+      if (!candidateData.candidateId && !candidateData.email) {
+        console.error('Candidate data missing required fields:', candidateData);
+        throw new Error('Invalid candidate data received');
+      }
+      
       setCandidate(candidateData);
 
       // Fetch applications for this candidate
@@ -56,18 +71,47 @@ export default function CandidateDetailScreen() {
       }
     } catch (error) {
       console.error('Error fetching candidate:', error);
-      Alert.alert('Error', 'Failed to load candidate details');
-      router.back();
+      const errorMessage = error instanceof Error ? error.message : 'Failed to load candidate details';
+      setLoading(false);
+      setCandidate(null); // Ensure candidate is null on error
+      // Don't navigate back automatically, let user see the error
+      Alert.alert('Error', errorMessage);
     } finally {
       setLoading(false);
     }
   }, [router]);
 
   useEffect(() => {
-    if (params.id) {
-      fetchCandidate(Number(params.id));
+    // Check if params.id is valid
+    if (!params.id) {
+      setLoading(false);
+      setCandidate(null);
+      return;
     }
-  }, [params.id, fetchCandidate]);
+
+    // Check if params.id is 'index' - this means we're on the wrong route
+    if (params.id === 'index') {
+      setLoading(false);
+      setCandidate(null);
+      // Navigate back to candidates list
+      setTimeout(() => {
+        router.replace('/recruitment/candidates');
+      }, 100);
+      return;
+    }
+
+    const candidateId = Number(params.id);
+    if (isNaN(candidateId) || candidateId <= 0) {
+      setLoading(false);
+      setCandidate(null);
+      Alert.alert('Error', `Invalid candidate ID: ${params.id}`, [
+        { text: 'OK', onPress: () => router.back() },
+      ]);
+      return;
+    }
+
+    fetchCandidate(candidateId);
+  }, [params.id, fetchCandidate, router]);
 
   const handleViewExams = () => {
     // Need applicationId to view exams - use first application if available
@@ -134,22 +178,25 @@ export default function CandidateDetailScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView className="flex-1 bg-gray-50">
+      <View className="flex-1 bg-gray-50" style={{ paddingTop: insets.top }}>
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator size="large" color="#2563eb" />
           <Text className="text-gray-500 mt-4">Loading candidate details...</Text>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
-  if (!candidate) {
+  if (!candidate && !loading) {
     return (
-      <SafeAreaView className="flex-1 bg-gray-50">
+      <View className="flex-1 bg-gray-50" style={{ paddingTop: insets.top }}>
         <View className="flex-1 items-center justify-center px-4">
           <Ionicons name="alert-circle-outline" size={64} color="#9ca3af" />
           <Text className="text-lg font-semibold text-gray-500 mt-4">
             Candidate not found
+          </Text>
+          <Text className="text-sm text-gray-400 mt-2 text-center">
+            {params.id ? `ID: ${params.id}` : 'No candidate ID provided'}
           </Text>
           <TouchableOpacity
             onPress={() => router.back()}
@@ -158,14 +205,14 @@ export default function CandidateDetailScreen() {
             <Text className="text-white font-semibold">Go Back</Text>
           </TouchableOpacity>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   const fullName = `${candidate.firstName} ${candidate.lastName}`;
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50">
+    <View className="flex-1 bg-gray-50" style={{ paddingTop: insets.top }}>
       {/* Header */}
       <View className="bg-white border-b border-gray-200 px-4 py-3">
         <View className="flex-row items-center justify-between mb-3">
@@ -338,21 +385,42 @@ export default function CandidateDetailScreen() {
           <View className="bg-white rounded-lg p-4 mb-4 border border-gray-200">
             <Text className="text-lg font-bold text-gray-900 mb-3">Files</Text>
             {files.map((file) => (
-              <TouchableOpacity
+              <View
                 key={file.fileId}
-                onPress={() => file.fileUrl && handleOpenUrl(file.fileUrl)}
                 className="flex-row items-center justify-between bg-gray-50 px-4 py-3 rounded-lg mb-2"
               >
                 <View className="flex-row items-center flex-1">
                   <Ionicons name="document-outline" size={20} color="#6b7280" />
-                  <Text className="text-sm font-semibold text-gray-700 ml-3 flex-1" numberOfLines={1}>
-                    {file.fileName}
-                  </Text>
+                  <View className="flex-1 ml-3">
+                    <Text className="text-sm font-semibold text-gray-700" numberOfLines={1}>
+                      {file.fileName || file.originalName}
+                    </Text>
+                    {file.fileSize && (
+                      <Text className="text-xs text-gray-500 mt-1">
+                        {file.fileSize}
+                      </Text>
+                    )}
+                  </View>
                 </View>
-                {file.fileUrl && (
-                  <Ionicons name="open-outline" size={16} color="#2563eb" />
-                )}
-              </TouchableOpacity>
+                <View className="flex-row items-center gap-2">
+                  {file.fileUrl && (
+                    <>
+                      <TouchableOpacity
+                        onPress={() => handleOpenUrl(file.fileUrl)}
+                        className="p-2"
+                      >
+                        <Ionicons name="eye-outline" size={18} color="#2563eb" />
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        onPress={() => handleDownloadFile(file)}
+                        className="p-2"
+                      >
+                        <Ionicons name="download-outline" size={18} color="#10b981" />
+                      </TouchableOpacity>
+                    </>
+                  )}
+                </View>
+              </View>
             ))}
           </View>
         )}
@@ -428,8 +496,8 @@ export default function CandidateDetailScreen() {
             </Text>
           </View>
         </View>
-      </ScrollView>
-    </SafeAreaView>
-  );
-}
+        </ScrollView>
+      </View>
+    );
+  }
 

@@ -11,11 +11,12 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { recruitmentAPI, QuestionSet } from '@/services/api/recruitment';
 
 export default function QuestionSetsListScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [questionSets, setQuestionSets] = useState<QuestionSet[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -24,9 +25,11 @@ export default function QuestionSetsListScreen() {
   const [total, setTotal] = useState(0);
   const limit = 20;
 
-  const fetchQuestionSets = useCallback(async () => {
+  const fetchQuestionSets = useCallback(async (append = false) => {
     try {
-      setLoading(true);
+      if (!append) {
+        setLoading(true);
+      }
       const params: any = {
         page,
         limit,
@@ -39,7 +42,11 @@ export default function QuestionSetsListScreen() {
       }
 
       const response = await recruitmentAPI.getQuestionSets(params);
-      setQuestionSets(response.data);
+      if (append) {
+        setQuestionSets((prev) => [...prev, ...response.data]);
+      } else {
+        setQuestionSets(response.data);
+      }
       setTotal(response.total);
     } catch (error) {
       console.error('Error fetching question sets:', error);
@@ -51,13 +58,24 @@ export default function QuestionSetsListScreen() {
   }, [page, searchTerm]);
 
   useEffect(() => {
-    fetchQuestionSets();
-  }, [fetchQuestionSets]);
+    if (page === 0) {
+      fetchQuestionSets(false);
+    } else {
+      fetchQuestionSets(true);
+    }
+  }, [page, searchTerm]);
 
   const onRefresh = () => {
     setRefreshing(true);
     setPage(0);
-    fetchQuestionSets();
+    fetchQuestionSets(false);
+  };
+
+  const handleLoadMore = () => {
+    if (questionSets.length < total && !loading) {
+      setPage((prev) => prev + 1);
+      fetchQuestionSets(true);
+    }
   };
 
   const handleQuestionSetPress = (questionSet: QuestionSet) => {
@@ -141,7 +159,7 @@ export default function QuestionSetsListScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50">
+    <View className="flex-1 bg-gray-50" style={{ paddingTop: insets.top }}>
       <View className="flex-1 px-4 pt-4">
         {/* Header */}
         <View className="flex-row items-center justify-between mb-4">
@@ -212,10 +230,17 @@ export default function QuestionSetsListScreen() {
               questionSets.length < total ? (
                 <View className="py-4">
                   <TouchableOpacity
-                    onPress={() => setPage(page + 1)}
-                    className="bg-blue-600 px-4 py-2 rounded-lg items-center"
+                    onPress={handleLoadMore}
+                    disabled={loading}
+                    className={`bg-blue-600 px-4 py-2 rounded-lg items-center ${
+                      loading ? 'opacity-50' : ''
+                    }`}
                   >
-                    <Text className="text-white font-semibold">Load More</Text>
+                    {loading ? (
+                      <ActivityIndicator size="small" color="white" />
+                    ) : (
+                      <Text className="text-white font-semibold">Load More</Text>
+                    )}
                   </TouchableOpacity>
                 </View>
               ) : null
@@ -223,7 +248,7 @@ export default function QuestionSetsListScreen() {
           />
         )}
       </View>
-    </SafeAreaView>
+    </View>
   );
 }
 

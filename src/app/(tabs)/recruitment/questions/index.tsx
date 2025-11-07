@@ -11,12 +11,13 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Picker } from '@react-native-picker/picker';
 import { recruitmentAPI, Question } from '@/services/api/recruitment';
 
 export default function QuestionsListScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [questions, setQuestions] = useState<Question[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -26,9 +27,11 @@ export default function QuestionsListScreen() {
   const [total, setTotal] = useState(0);
   const limit = 20;
 
-  const fetchQuestions = useCallback(async () => {
+  const fetchQuestions = useCallback(async (append = false) => {
     try {
-      setLoading(true);
+      if (!append) {
+        setLoading(true);
+      }
       const params: any = {
         page,
         limit,
@@ -45,7 +48,11 @@ export default function QuestionsListScreen() {
       }
 
       const response = await recruitmentAPI.getQuestions(params);
-      setQuestions(response.data);
+      if (append) {
+        setQuestions((prev) => [...prev, ...response.data]);
+      } else {
+        setQuestions(response.data);
+      }
       setTotal(response.total);
     } catch (error) {
       console.error('Error fetching questions:', error);
@@ -57,13 +64,24 @@ export default function QuestionsListScreen() {
   }, [page, searchTerm, difficultyFilter]);
 
   useEffect(() => {
-    fetchQuestions();
-  }, [fetchQuestions]);
+    if (page === 0) {
+      fetchQuestions(false);
+    } else {
+      fetchQuestions(true);
+    }
+  }, [page, searchTerm, difficultyFilter]);
 
   const onRefresh = () => {
     setRefreshing(true);
     setPage(0);
-    fetchQuestions();
+    fetchQuestions(false);
+  };
+
+  const handleLoadMore = () => {
+    if (questions.length < total && !loading) {
+      setPage((prev) => prev + 1);
+      fetchQuestions(true);
+    }
   };
 
   const handleQuestionPress = (question: Question) => {
@@ -146,7 +164,7 @@ export default function QuestionsListScreen() {
   );
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50">
+    <View className="flex-1 bg-gray-50" style={{ paddingTop: insets.top }}>
       <View className="flex-1 px-4 pt-4">
         {/* Header */}
         <View className="flex-row items-center justify-between mb-4">
@@ -233,10 +251,17 @@ export default function QuestionsListScreen() {
               questions.length < total ? (
                 <View className="py-4">
                   <TouchableOpacity
-                    onPress={() => setPage(page + 1)}
-                    className="bg-blue-600 px-4 py-2 rounded-lg items-center"
+                    onPress={handleLoadMore}
+                    disabled={loading}
+                    className={`bg-blue-600 px-4 py-2 rounded-lg items-center ${
+                      loading ? 'opacity-50' : ''
+                    }`}
                   >
-                    <Text className="text-white font-semibold">Load More</Text>
+                    {loading ? (
+                      <ActivityIndicator size="small" color="white" />
+                    ) : (
+                      <Text className="text-white font-semibold">Load More</Text>
+                    )}
                   </TouchableOpacity>
                 </View>
               ) : null
@@ -244,7 +269,7 @@ export default function QuestionsListScreen() {
           />
         )}
       </View>
-    </SafeAreaView>
+    </View>
   );
 }
 

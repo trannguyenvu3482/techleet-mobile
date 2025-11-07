@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Picker } from '@react-native-picker/picker';
 import { recruitmentAPI, Question, CreateQuestionRequest, UpdateQuestionRequest } from '@/services/api/recruitment';
 
@@ -19,6 +19,7 @@ const DIFFICULTIES = ['easy', 'medium', 'hard'];
 export default function QuestionFormScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ id?: string }>();
+  const insets = useSafeAreaInsets();
   const isEdit = !!params.id;
 
   const [loading, setLoading] = useState(true);
@@ -120,16 +121,16 @@ export default function QuestionFormScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView className="flex-1 bg-gray-50">
+      <View className="flex-1 bg-gray-50" style={{ paddingTop: insets.top }}>
         <View className="flex-1 justify-center items-center">
           <ActivityIndicator size="large" color="#2563eb" />
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50">
+    <View className="flex-1 bg-gray-50" style={{ paddingTop: insets.top }}>
       <View className="flex-1">
         {/* Header */}
         <View className="bg-white px-4 py-3 border-b border-gray-200 flex-row items-center">
@@ -214,7 +215,7 @@ export default function QuestionFormScreen() {
           </TouchableOpacity>
         </ScrollView>
       </View>
-    </SafeAreaView>
+    </View>
   );
 }
 

@@ -11,13 +11,14 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Picker } from '@react-native-picker/picker';
 import { recruitmentAPI, Application, JobPosting } from '@/services/api/recruitment';
 
 export default function ApplicationListScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ jobId?: string }>();
+  const insets = useSafeAreaInsets();
   const [applications, setApplications] = useState<Application[]>([]);
   const [jobs, setJobs] = useState<JobPosting[]>([]);
   const [loading, setLoading] = useState(true);
@@ -27,12 +28,19 @@ export default function ApplicationListScreen() {
   const [jobFilter, setJobFilter] = useState<string>(params.jobId || 'all');
   const [sortBy, setSortBy] = useState<'appliedAt' | 'score'>('appliedAt');
   const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC'>('DESC');
+  const [showFilters, setShowFilters] = useState(false);
+  const [page, setPage] = useState(0);
+  const [total, setTotal] = useState(0);
+  const limit = 20;
 
-  const fetchApplications = useCallback(async () => {
+  const fetchApplications = useCallback(async (append = false) => {
     try {
-      setLoading(true);
+      if (!append) {
+        setLoading(true);
+      }
       const params: any = {
-        limit: 100,
+        page,
+        limit,
         sortBy: sortBy === 'appliedAt' ? 'appliedDate' : 'score',
         sortOrder,
       };
@@ -50,7 +58,12 @@ export default function ApplicationListScreen() {
       }
 
       const response = await recruitmentAPI.getApplications(params);
-      setApplications(response.data);
+      if (append) {
+        setApplications((prev) => [...prev, ...response.data]);
+      } else {
+        setApplications(response.data);
+      }
+      setTotal(response.total || response.data.length);
     } catch (error) {
       console.error('Error fetching applications:', error);
       Alert.alert('Error', 'Failed to load applications');
@@ -58,7 +71,7 @@ export default function ApplicationListScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [searchTerm, statusFilter, jobFilter, sortBy, sortOrder]);
+  }, [page, searchTerm, statusFilter, jobFilter, sortBy, sortOrder]);
 
   const fetchJobs = useCallback(async () => {
     try {
@@ -74,12 +87,23 @@ export default function ApplicationListScreen() {
   }, [fetchJobs]);
 
   useEffect(() => {
-    fetchApplications();
-  }, [fetchApplications]);
+    if (page === 0) {
+      fetchApplications(false);
+    } else {
+      fetchApplications(true);
+    }
+  }, [page, searchTerm, statusFilter, jobFilter, sortBy, sortOrder]);
 
   const onRefresh = () => {
     setRefreshing(true);
-    fetchApplications();
+    setPage(0);
+    fetchApplications(false);
+  };
+
+  const handleLoadMore = () => {
+    if (applications.length < total && !loading) {
+      setPage((prev) => prev + 1);
+    }
   };
 
   const handleApplicationPress = (application: Application) => {
@@ -127,10 +151,18 @@ export default function ApplicationListScreen() {
 
   const handleSearch = (text: string) => {
     setSearchTerm(text);
-    setTimeout(() => {
-      fetchApplications();
-    }, 500);
+    setPage(0);
   };
+
+  // Debounce search effect
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (page === 0) {
+        fetchApplications(false);
+      }
+    }, 500);
+    return () => clearTimeout(timeoutId);
+  }, [searchTerm]);
 
   const renderApplicationItem = ({ item }: { item: Application }) => (
     <TouchableOpacity
@@ -198,33 +230,21 @@ export default function ApplicationListScreen() {
 
   if (loading && applications.length === 0) {
     return (
-      <SafeAreaView className="flex-1 bg-gray-50">
+      <View className="flex-1 bg-gray-50" style={{ paddingTop: insets.top }}>
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator size="large" color="#2563eb" />
           <Text className="text-gray-500 mt-4">Loading applications...</Text>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50">
+    <View className="flex-1 bg-gray-50" style={{ paddingTop: insets.top }}>
       {/* Header */}
       <View className="bg-white border-b border-gray-200 px-4 py-3">
         <View className="flex-row items-center justify-between mb-3">
           <Text className="text-2xl font-bold text-gray-900 flex-1">Applications</Text>
-          <TouchableOpacity
-            onPress={() => {
-              setSortOrder(sortOrder === 'ASC' ? 'DESC' : 'ASC');
-            }}
-            className="p-2"
-          >
-            <Ionicons
-              name={sortOrder === 'ASC' ? 'arrow-up' : 'arrow-down'}
-              size={20}
-              color="#2563eb"
-            />
-          </TouchableOpacity>
         </View>
 
         {/* Search Bar */}
@@ -244,82 +264,158 @@ export default function ApplicationListScreen() {
           />
         </View>
 
-        {/* Filters */}
-        <View className="flex-row gap-2 mb-2">
-          {/* Status Filter */}
-          <View className="flex-1">
-            <Picker
-              selectedValue={statusFilter}
-              onValueChange={(itemValue) => {
-                setStatusFilter(itemValue);
-                fetchApplications();
-              }}
-              style={{ backgroundColor: '#f3f4f6', borderRadius: 8 }}
-            >
-              <Picker.Item label="All Status" value="all" />
-              <Picker.Item label="Submitted" value="pending" />
-              <Picker.Item label="Screening" value="reviewing" />
-              <Picker.Item label="Interviewing" value="interview" />
-              <Picker.Item label="Offer" value="accepted" />
-              <Picker.Item label="Rejected" value="rejected" />
-            </Picker>
+        {/* Filters Toggle */}
+        <TouchableOpacity
+          onPress={() => setShowFilters(!showFilters)}
+          className="flex-row items-center justify-between bg-gray-100 px-4 py-3 rounded-lg mb-2"
+        >
+          <View className="flex-row items-center">
+            <Ionicons name="filter-outline" size={18} color="#6b7280" />
+            <Text className="text-sm font-semibold text-gray-700 ml-2">Filters & Sort</Text>
+            {(statusFilter !== 'all' || jobFilter !== 'all' || sortBy !== 'appliedAt') && (
+              <View className="ml-2 bg-blue-600 rounded-full px-2 py-0.5">
+                <Text className="text-xs text-white font-semibold">Active</Text>
+              </View>
+            )}
           </View>
+          <Ionicons
+            name={showFilters ? 'chevron-up' : 'chevron-down'}
+            size={20}
+            color="#6b7280"
+          />
+        </TouchableOpacity>
 
-          {/* Job Filter */}
-          {jobs.length > 0 && (
-            <View className="flex-1">
-              <Picker
-                selectedValue={jobFilter}
-                onValueChange={(itemValue) => {
-                  setJobFilter(itemValue);
-                  fetchApplications();
-                }}
-                style={{ backgroundColor: '#f3f4f6', borderRadius: 8 }}
-              >
-                <Picker.Item label="All Jobs" value="all" />
-                {jobs.map((job) => (
-                  <Picker.Item
-                    key={job.jobPostingId}
-                    label={job.title}
-                    value={job.jobPostingId.toString()}
-                  />
+        {/* Filters & Sort Options (Collapsible) */}
+        {showFilters && (
+          <View className="bg-gray-50 rounded-lg p-3 mb-2 border border-gray-200">
+            {/* Status Filter */}
+            <View className="mb-3">
+              <Text className="text-xs font-semibold text-gray-700 mb-2">Status:</Text>
+              <View className="flex-row gap-2 flex-wrap">
+                {[
+                  { value: 'all', label: 'All' },
+                  { value: 'pending', label: 'Submitted' },
+                  { value: 'reviewing', label: 'Screening' },
+                  { value: 'interview', label: 'Interviewing' },
+                  { value: 'accepted', label: 'Offer' },
+                  { value: 'rejected', label: 'Rejected' },
+                ].map((filter) => (
+                  <TouchableOpacity
+                    key={filter.value}
+                    onPress={() => {
+                      setStatusFilter(filter.value);
+                      setPage(0);
+                    }}
+                    className={`px-3 py-2 rounded-lg ${
+                      statusFilter === filter.value ? 'bg-blue-600' : 'bg-white'
+                    }`}
+                  >
+                    <Text
+                      className={`text-xs font-semibold ${
+                        statusFilter === filter.value ? 'text-white' : 'text-gray-600'
+                      }`}
+                    >
+                      {filter.label}
+                    </Text>
+                  </TouchableOpacity>
                 ))}
-              </Picker>
+              </View>
             </View>
-          )}
-        </View>
 
-        {/* Sort By */}
-        <View className="flex-row gap-2">
-          <TouchableOpacity
-            onPress={() => setSortBy('appliedAt')}
-            className={`flex-1 px-3 py-2 rounded-lg ${
-              sortBy === 'appliedAt' ? 'bg-blue-600' : 'bg-gray-100'
-            }`}
-          >
-            <Text
-              className={`text-xs font-semibold text-center ${
-                sortBy === 'appliedAt' ? 'text-white' : 'text-gray-600'
-              }`}
-            >
-              Sort by Date
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => setSortBy('score')}
-            className={`flex-1 px-3 py-2 rounded-lg ${
-              sortBy === 'score' ? 'bg-blue-600' : 'bg-gray-100'
-            }`}
-          >
-            <Text
-              className={`text-xs font-semibold text-center ${
-                sortBy === 'score' ? 'text-white' : 'text-gray-600'
-              }`}
-            >
-              Sort by Score
-            </Text>
-          </TouchableOpacity>
-        </View>
+            {/* Job Filter */}
+            {jobs.length > 0 && (
+              <View className="mb-3">
+                <Text className="text-xs font-semibold text-gray-700 mb-2">Job:</Text>
+                <View className="flex-row gap-2 flex-wrap">
+                  <TouchableOpacity
+                    onPress={() => {
+                      setJobFilter('all');
+                      setPage(0);
+                    }}
+                    className={`px-3 py-2 rounded-lg ${
+                      jobFilter === 'all' ? 'bg-green-600' : 'bg-white'
+                    }`}
+                  >
+                    <Text
+                      className={`text-xs font-semibold ${
+                        jobFilter === 'all' ? 'text-white' : 'text-gray-600'
+                      }`}
+                    >
+                      All Jobs
+                    </Text>
+                  </TouchableOpacity>
+                  {jobs.map((job) => (
+                    <TouchableOpacity
+                      key={job.jobPostingId}
+                      onPress={() => {
+                        setJobFilter(job.jobPostingId.toString());
+                        setPage(0);
+                      }}
+                      className={`px-3 py-2 rounded-lg ${
+                        jobFilter === job.jobPostingId.toString() ? 'bg-green-600' : 'bg-white'
+                      }`}
+                    >
+                      <Text
+                        className={`text-xs font-semibold ${
+                          jobFilter === job.jobPostingId.toString() ? 'text-white' : 'text-gray-600'
+                        }`}
+                        numberOfLines={1}
+                        style={{ maxWidth: 120 }}
+                      >
+                        {job.title}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            )}
+
+            {/* Sort Options */}
+            <View>
+              <Text className="text-xs font-semibold text-gray-700 mb-2">Sort By:</Text>
+              <View className="flex-row gap-2 flex-wrap">
+                {[
+                  { value: 'appliedAt', label: 'Date' },
+                  { value: 'score', label: 'Score' },
+                ].map((option) => (
+                  <TouchableOpacity
+                    key={option.value}
+                    onPress={() => {
+                      if (sortBy === option.value) {
+                        setSortOrder(sortOrder === 'ASC' ? 'DESC' : 'ASC');
+                      } else {
+                        setSortBy(option.value as 'appliedAt' | 'score');
+                        setSortOrder('DESC');
+                      }
+                      setPage(0);
+                    }}
+                    className={`px-3 py-2 rounded-lg ${
+                      sortBy === option.value ? 'bg-orange-600' : 'bg-white'
+                    }`}
+                  >
+                    <View className="flex-row items-center">
+                      <Text
+                        className={`text-xs font-semibold ${
+                          sortBy === option.value ? 'text-white' : 'text-gray-600'
+                        }`}
+                      >
+                        {option.label}
+                      </Text>
+                      {sortBy === option.value && (
+                        <Ionicons
+                          name={sortOrder === 'ASC' ? 'arrow-up' : 'arrow-down'}
+                          size={14}
+                          color="white"
+                          style={{ marginLeft: 4 }}
+                        />
+                      )}
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          </View>
+        )}
       </View>
 
       {/* Applications List */}
@@ -332,8 +428,27 @@ export default function ApplicationListScreen() {
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
+        ListFooterComponent={
+          applications.length < total && applications.length > 0 ? (
+            <View className="py-4">
+              <TouchableOpacity
+                onPress={handleLoadMore}
+                disabled={loading}
+                className={`bg-blue-600 px-4 py-2 rounded-lg items-center ${
+                  loading ? 'opacity-50' : ''
+                }`}
+              >
+                {loading ? (
+                  <ActivityIndicator size="small" color="white" />
+                ) : (
+                  <Text className="text-white font-semibold">Load More</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          ) : null
+        }
       />
-    </SafeAreaView>
+    </View>
   );
 }
 

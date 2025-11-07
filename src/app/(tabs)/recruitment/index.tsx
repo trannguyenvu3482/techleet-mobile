@@ -6,28 +6,63 @@ import { useProtectedRoute } from '@/hooks';
 import { JobCard } from '@/components/ui';
 import { JobPostingDto } from '@/types/recruitment';
 import { recruitmentAPI } from '@/services/api';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function RecruitmentScreen() {
   useProtectedRoute();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [jobs, setJobs] = useState<JobPostingDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [employmentTypeFilter, setEmploymentTypeFilter] = useState('all');
+  const [experienceLevelFilter, setExperienceLevelFilter] = useState('all');
+  const [sortBy, setSortBy] = useState<'createdAt' | 'title'>('createdAt');
+  const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC'>('DESC');
+  const [showFilters, setShowFilters] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [page, setPage] = useState(0);
+  const [total, setTotal] = useState(0);
+  const limit = 20;
 
-  const fetchJobs = useCallback(async (keyword?: string, status?: string) => {
+  const fetchJobs = useCallback(async (keyword?: string, status?: string, append = false) => {
     try {
-      setError(null);
-      const response = await recruitmentAPI.getJobPostings({
-        keyword,
-        status: status === 'all' ? undefined : (status as 'draft' | 'published' | 'closed'),
-        page: 0,
-        limit: 50,
-      });
-      setJobs(response.data);
+      if (!append) {
+        setError(null);
+        setLoading(true);
+      }
+      const params: any = {
+        page,
+        limit,
+        sortBy,
+        sortOrder,
+      };
+
+      if (keyword) {
+        params.keyword = keyword;
+      }
+
+      if (status !== 'all') {
+        params.status = status as 'draft' | 'published' | 'closed';
+      }
+
+      if (employmentTypeFilter !== 'all') {
+        params.employmentType = employmentTypeFilter;
+      }
+
+      if (experienceLevelFilter !== 'all') {
+        params.experienceLevel = experienceLevelFilter;
+      }
+
+      const response = await recruitmentAPI.getJobPostings(params);
+      if (append) {
+        setJobs((prev) => [...prev, ...response.data]);
+      } else {
+        setJobs(response.data);
+      }
+      setTotal(response.total || response.data.length);
     } catch (err) {
       console.error('Error fetching jobs:', err);
       setError('Failed to load jobs');
@@ -35,31 +70,67 @@ export default function RecruitmentScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [page, sortBy, sortOrder, employmentTypeFilter, experienceLevelFilter]);
 
   React.useEffect(() => {
-    fetchJobs();
-  }, [fetchJobs]);
+    if (page === 0) {
+      fetchJobs(searchTerm || undefined, statusFilter, false);
+    } else {
+      fetchJobs(searchTerm || undefined, statusFilter, true);
+    }
+  }, [page, searchTerm, statusFilter, sortBy, sortOrder, employmentTypeFilter, experienceLevelFilter, fetchJobs]);
 
   const onRefresh = () => {
     setRefreshing(true);
-    fetchJobs(searchTerm || undefined, statusFilter);
+    setPage(0);
+    fetchJobs(searchTerm || undefined, statusFilter, false);
+  };
+
+  const handleLoadMore = () => {
+    if (jobs.length < total && !loading) {
+      setPage((prev) => prev + 1);
+    }
   };
 
   const handleSearch = (text: string) => {
     setSearchTerm(text);
-    if (text.trim()) {
-      setTimeout(() => {
-        fetchJobs(text, statusFilter);
-      }, 500);
-    } else {
-      fetchJobs(undefined, statusFilter);
-    }
+    setPage(0);
   };
+
+  // Debounce search effect
+  React.useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (page === 0) {
+        fetchJobs(searchTerm || undefined, statusFilter, false);
+      }
+    }, 500);
+    return () => clearTimeout(timeoutId);
+  }, [searchTerm]);
 
   const handleFilterChange = (newFilter: string) => {
     setStatusFilter(newFilter);
-    fetchJobs(searchTerm || undefined, newFilter);
+    setPage(0);
+    fetchJobs(searchTerm || undefined, newFilter, false);
+  };
+
+  const handleEmploymentTypeFilterChange = (newFilter: string) => {
+    setEmploymentTypeFilter(newFilter);
+    setPage(0);
+  };
+
+  const handleExperienceLevelFilterChange = (newFilter: string) => {
+    setExperienceLevelFilter(newFilter);
+    setPage(0);
+  };
+
+  const handleSortChange = (field: 'createdAt' | 'title') => {
+    if (sortBy === field) {
+      setSortOrder(sortOrder === 'ASC' ? 'DESC' : 'ASC');
+    } else {
+      setSortBy(field);
+      setSortOrder('DESC');
+    }
+    setPage(0);
   };
 
   const handleJobPress = (job: JobPostingDto) => {
@@ -80,17 +151,17 @@ export default function RecruitmentScreen() {
 
   if (loading && jobs.length === 0) {
     return (
-      <SafeAreaView className="flex-1 bg-gray-50">
+      <View className="flex-1 bg-gray-50" style={{ paddingTop: insets.top }}>
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator size="large" color="#2563eb" />
           <Text className="text-gray-500 mt-4">Loading jobs...</Text>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50">
+    <View className="flex-1 bg-gray-50" style={{ paddingTop: insets.top }}>
       {/* Header */}
       <View className="px-4 pt-4 pb-2 bg-white border-b border-gray-200">
         <View className="flex-row items-center mb-3">
@@ -183,26 +254,140 @@ export default function RecruitmentScreen() {
           />
         </View>
 
-        {/* Status Filter */}
-        <View className="flex-row gap-2">
-          {['all', 'draft', 'published', 'closed'].map((filter) => (
-            <TouchableOpacity
-              key={filter}
-              onPress={() => handleFilterChange(filter)}
-              className={`px-3 py-2 rounded-lg ${
-                statusFilter === filter ? 'bg-blue-600' : 'bg-gray-100'
-              }`}
-            >
-              <Text
-                className={`text-xs font-semibold ${
-                  statusFilter === filter ? 'text-white' : 'text-gray-600'
-                }`}
-              >
-                {filter.charAt(0).toUpperCase() + filter.slice(1)}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
+        {/* Filters Toggle */}
+        <TouchableOpacity
+          onPress={() => setShowFilters(!showFilters)}
+          className="flex-row items-center justify-between bg-gray-100 px-4 py-3 rounded-lg mb-2"
+        >
+          <View className="flex-row items-center">
+            <Ionicons name="filter-outline" size={18} color="#6b7280" />
+            <Text className="text-sm font-semibold text-gray-700 ml-2">Filters & Sort</Text>
+            {(statusFilter !== 'all' || employmentTypeFilter !== 'all' || experienceLevelFilter !== 'all' || sortBy !== 'createdAt') && (
+              <View className="ml-2 bg-blue-600 rounded-full px-2 py-0.5">
+                <Text className="text-xs text-white font-semibold">Active</Text>
+              </View>
+            )}
+          </View>
+          <Ionicons
+            name={showFilters ? 'chevron-up' : 'chevron-down'}
+            size={20}
+            color="#6b7280"
+          />
+        </TouchableOpacity>
+
+        {/* Filters & Sort Options (Collapsible) */}
+        {showFilters && (
+          <View className="bg-gray-50 rounded-lg p-3 mb-2 border border-gray-200">
+            {/* Status Filter */}
+            <View className="mb-3">
+              <Text className="text-xs font-semibold text-gray-700 mb-2">Status:</Text>
+              <View className="flex-row gap-2 flex-wrap">
+                {['all', 'draft', 'published', 'closed'].map((filter) => (
+                  <TouchableOpacity
+                    key={filter}
+                    onPress={() => handleFilterChange(filter)}
+                    className={`px-3 py-2 rounded-lg ${
+                      statusFilter === filter ? 'bg-blue-600' : 'bg-white'
+                    }`}
+                  >
+                    <Text
+                      className={`text-xs font-semibold ${
+                        statusFilter === filter ? 'text-white' : 'text-gray-600'
+                      }`}
+                    >
+                      {filter.charAt(0).toUpperCase() + filter.slice(1)}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            {/* Employment Type Filter */}
+            <View className="mb-3">
+              <Text className="text-xs font-semibold text-gray-700 mb-2">Employment Type:</Text>
+              <View className="flex-row gap-2 flex-wrap">
+                {['all', 'full-time', 'part-time', 'contract', 'internship'].map((filter) => (
+                  <TouchableOpacity
+                    key={filter}
+                    onPress={() => handleEmploymentTypeFilterChange(filter)}
+                    className={`px-3 py-2 rounded-lg ${
+                      employmentTypeFilter === filter ? 'bg-green-600' : 'bg-white'
+                    }`}
+                  >
+                    <Text
+                      className={`text-xs font-semibold ${
+                        employmentTypeFilter === filter ? 'text-white' : 'text-gray-600'
+                      }`}
+                    >
+                      {filter === 'all' ? 'All' : filter.charAt(0).toUpperCase() + filter.slice(1).replace('-', ' ')}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            {/* Experience Level Filter */}
+            <View className="mb-3">
+              <Text className="text-xs font-semibold text-gray-700 mb-2">Experience Level:</Text>
+              <View className="flex-row gap-2 flex-wrap">
+                {['all', 'entry', 'mid', 'senior', 'executive'].map((filter) => (
+                  <TouchableOpacity
+                    key={filter}
+                    onPress={() => handleExperienceLevelFilterChange(filter)}
+                    className={`px-3 py-2 rounded-lg ${
+                      experienceLevelFilter === filter ? 'bg-purple-600' : 'bg-white'
+                    }`}
+                  >
+                    <Text
+                      className={`text-xs font-semibold ${
+                        experienceLevelFilter === filter ? 'text-white' : 'text-gray-600'
+                      }`}
+                    >
+                      {filter === 'all' ? 'All' : filter.charAt(0).toUpperCase() + filter.slice(1)}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            {/* Sort Options */}
+            <View>
+              <Text className="text-xs font-semibold text-gray-700 mb-2">Sort By:</Text>
+              <View className="flex-row gap-2 flex-wrap">
+                {[
+                  { value: 'createdAt', label: 'Date' },
+                  { value: 'title', label: 'Title' },
+                ].map((option) => (
+                  <TouchableOpacity
+                    key={option.value}
+                    onPress={() => handleSortChange(option.value as 'createdAt' | 'title')}
+                    className={`px-3 py-2 rounded-lg ${
+                      sortBy === option.value ? 'bg-orange-600' : 'bg-white'
+                    }`}
+                  >
+                    <View className="flex-row items-center">
+                      <Text
+                        className={`text-xs font-semibold ${
+                          sortBy === option.value ? 'text-white' : 'text-gray-600'
+                        }`}
+                      >
+                        {option.label}
+                      </Text>
+                      {sortBy === option.value && (
+                        <Ionicons
+                          name={sortOrder === 'ASC' ? 'arrow-up' : 'arrow-down'}
+                          size={14}
+                          color="white"
+                          style={{ marginLeft: 4 }}
+                        />
+                      )}
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          </View>
+        )}
       </View>
 
       {/* Jobs List */}
@@ -219,8 +404,27 @@ export default function RecruitmentScreen() {
         contentContainerStyle={{ padding: 16, flexGrow: 1 }}
         ListEmptyComponent={renderEmpty}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        ListFooterComponent={
+          jobs.length < total && jobs.length > 0 ? (
+            <View className="py-4">
+              <TouchableOpacity
+                onPress={handleLoadMore}
+                disabled={loading}
+                className={`bg-blue-600 px-4 py-2 rounded-lg items-center ${
+                  loading ? 'opacity-50' : ''
+                }`}
+              >
+                {loading ? (
+                  <ActivityIndicator size="small" color="white" />
+                ) : (
+                  <Text className="text-white font-semibold">Load More</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          ) : null
+        }
       />
-    </SafeAreaView>
+    </View>
   );
 }
 

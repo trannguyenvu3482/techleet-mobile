@@ -10,20 +10,34 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { recruitmentAPI, Application } from '@/services/api/recruitment';
 
 export default function InterviewRequestsScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [requests, setRequests] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [page, setPage] = useState(0);
+  const [total, setTotal] = useState(0);
+  const limit = 20;
 
-  const fetchRequests = useCallback(async () => {
+  const fetchRequests = useCallback(async (append = false) => {
     try {
-      setLoading(true);
-      const response = await recruitmentAPI.getInterviewRequests({ limit: 100 });
-      setRequests(response.data);
+      if (!append) {
+        setLoading(true);
+      }
+      const response = await recruitmentAPI.getInterviewRequests({ 
+        page,
+        limit,
+      });
+      if (append) {
+        setRequests((prev) => [...prev, ...response.data]);
+      } else {
+        setRequests(response.data);
+      }
+      setTotal(response.total || response.data.length);
     } catch (error) {
       console.error('Error fetching interview requests:', error);
       Alert.alert('Error', 'Failed to load interview requests');
@@ -31,15 +45,26 @@ export default function InterviewRequestsScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [page]);
 
   useEffect(() => {
-    fetchRequests();
-  }, [fetchRequests]);
+    if (page === 0) {
+      fetchRequests(false);
+    } else {
+      fetchRequests(true);
+    }
+  }, [page, fetchRequests]);
 
   const onRefresh = () => {
     setRefreshing(true);
-    fetchRequests();
+    setPage(0);
+    fetchRequests(false);
+  };
+
+  const handleLoadMore = () => {
+    if (requests.length < total && !loading) {
+      setPage((prev) => prev + 1);
+    }
   };
 
   const handleRequestPress = (request: Application) => {
@@ -103,17 +128,17 @@ export default function InterviewRequestsScreen() {
 
   if (loading && requests.length === 0) {
     return (
-      <SafeAreaView className="flex-1 bg-gray-50">
+      <View className="flex-1 bg-gray-50" style={{ paddingTop: insets.top }}>
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator size="large" color="#2563eb" />
           <Text className="text-gray-500 mt-4">Loading interview requests...</Text>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50">
+    <View className="flex-1 bg-gray-50" style={{ paddingTop: insets.top }}>
       {/* Header */}
       <View className="bg-white border-b border-gray-200 px-4 py-3">
         <View className="flex-row items-center justify-between mb-3">
@@ -134,8 +159,27 @@ export default function InterviewRequestsScreen() {
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
+        ListFooterComponent={
+          requests.length < total && requests.length > 0 ? (
+            <View className="py-4">
+              <TouchableOpacity
+                onPress={handleLoadMore}
+                disabled={loading}
+                className={`bg-blue-600 px-4 py-2 rounded-lg items-center ${
+                  loading ? 'opacity-50' : ''
+                }`}
+              >
+                {loading ? (
+                  <ActivityIndicator size="small" color="white" />
+                ) : (
+                  <Text className="text-white font-semibold">Load More</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          ) : null
+        }
       />
-    </SafeAreaView>
+    </View>
   );
 }
 

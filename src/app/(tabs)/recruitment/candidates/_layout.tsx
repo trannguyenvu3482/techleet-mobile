@@ -6,6 +6,7 @@ export default function CandidatesLayout() {
       screenOptions={{
         headerShown: false,
       }}
+      initialRouteName="index"
     >
       <Stack.Screen name="index" />
       <Stack.Screen name="form" />
