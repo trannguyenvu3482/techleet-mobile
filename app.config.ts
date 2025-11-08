@@ -37,8 +37,29 @@ module.exports = {
             deploymentTarget: "15.1"
           }
         }
+      ],
+      [
+        "expo-notifications",
+        {
+          icon: "./assets/icon.png",
+          color: "#2563eb",
+          sounds: [],
+          mode: "production"
+        }
+      ],
+      [
+        "expo-calendar",
+        {
+          calendarPermission: "Allow TechLeet to access your calendar to add interview events."
+        }
       ]
     ],
+    notification: {
+      icon: "./assets/icon.png",
+      color: "#2563eb",
+      iosDisplayInForeground: true,
+      androidMode: "default"
+    },
     experiments: {
       typedRoutes: true,
       reactCompiler: true

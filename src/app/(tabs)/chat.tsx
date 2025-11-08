@@ -22,9 +22,13 @@ import {
   ChatbotState,
 } from "@/services/api/chatbot";
 import { useAuthStore } from "@/store/auth-store";
+import { useThemeStore } from "@/store/theme-store";
+import { getColors } from "@/theme/colors";
 
 export default function ChatScreen() {
   const { user } = useAuthStore();
+  const { isDark } = useThemeStore();
+  const colors = getColors(isDark);
   const [state, setState] = useState<ChatbotState>({
     isOpen: true,
     isLoading: false,
@@ -136,10 +140,11 @@ export default function ChatScreen() {
       >
         <View
           className={`max-w-[80%] rounded-lg px-4 py-3 ${
-            isUser
-              ? "bg-blue-600 rounded-tr-none"
-              : "bg-gray-200 rounded-tl-none"
+            isUser ? "rounded-tr-none" : "rounded-tl-none"
           }`}
+          style={{
+            backgroundColor: isUser ? colors.primary : colors.surface,
+          }}
         >
           {isUser ? (
             <Text className="text-base text-white">{item.content}</Text>
@@ -147,7 +152,7 @@ export default function ChatScreen() {
             <Markdown
               style={{
                 body: {
-                  color: "#111827",
+                  color: colors.text,
                   fontSize: 16,
                   lineHeight: 24,
                 },
@@ -160,25 +165,25 @@ export default function ChatScreen() {
                   fontWeight: "bold",
                   marginTop: 12,
                   marginBottom: 8,
-                  color: "#111827",
+                  color: colors.text,
                 },
                 heading2: {
                   fontSize: 20,
                   fontWeight: "bold",
                   marginTop: 10,
                   marginBottom: 6,
-                  color: "#111827",
+                  color: colors.text,
                 },
                 heading3: {
                   fontSize: 18,
                   fontWeight: "bold",
                   marginTop: 8,
                   marginBottom: 4,
-                  color: "#111827",
+                  color: colors.text,
                 },
                 code_inline: {
-                  backgroundColor: "#f3f4f6",
-                  color: "#dc2626",
+                  backgroundColor: colors.surface,
+                  color: colors.error,
                   paddingHorizontal: 4,
                   paddingVertical: 2,
                   borderRadius: 4,
@@ -186,8 +191,8 @@ export default function ChatScreen() {
                   fontFamily: "monospace",
                 },
                 code_block: {
-                  backgroundColor: "#1f2937",
-                  color: "#f9fafb",
+                  backgroundColor: colors.card,
+                  color: colors.text,
                   padding: 12,
                   borderRadius: 8,
                   marginVertical: 8,
@@ -195,8 +200,8 @@ export default function ChatScreen() {
                   fontFamily: "monospace",
                 },
                 fence: {
-                  backgroundColor: "#1f2937",
-                  color: "#f9fafb",
+                  backgroundColor: colors.card,
+                  color: colors.text,
                   padding: 12,
                   borderRadius: 8,
                   marginVertical: 8,
@@ -204,7 +209,7 @@ export default function ChatScreen() {
                   fontFamily: "monospace",
                 },
                 link: {
-                  color: "#2563eb",
+                  color: colors.primary,
                   textDecorationLine: "underline",
                 },
                 list_item: {
@@ -218,41 +223,41 @@ export default function ChatScreen() {
                 },
                 strong: {
                   fontWeight: "bold",
-                  color: "#111827",
+                  color: colors.text,
                 },
                 em: {
                   fontStyle: "italic",
                 },
                 blockquote: {
-                  backgroundColor: "#f3f4f6",
+                  backgroundColor: colors.surface,
                   borderLeftWidth: 4,
-                  borderLeftColor: "#2563eb",
+                  borderLeftColor: colors.primary,
                   paddingLeft: 12,
                   paddingVertical: 8,
                   marginVertical: 8,
                 },
                 table: {
                   borderWidth: 1,
-                  borderColor: "#e5e7eb",
+                  borderColor: colors.border,
                   borderRadius: 8,
                   marginVertical: 8,
                 },
                 thead: {
-                  backgroundColor: "#f9fafb",
+                  backgroundColor: colors.surface,
                 },
                 th: {
                   borderWidth: 1,
-                  borderColor: "#e5e7eb",
+                  borderColor: colors.border,
                   padding: 8,
                   fontWeight: "bold",
                 },
                 td: {
                   borderWidth: 1,
-                  borderColor: "#e5e7eb",
+                  borderColor: colors.border,
                   padding: 8,
                 },
                 hr: {
-                  backgroundColor: "#e5e7eb",
+                  backgroundColor: colors.border,
                   height: 1,
                   marginVertical: 12,
                 },
@@ -262,9 +267,10 @@ export default function ChatScreen() {
             </Markdown>
           )}
           <Text
-            className={`text-xs mt-1 ${
-              isUser ? "text-blue-100" : "text-gray-500"
-            }`}
+            className="text-xs mt-1"
+            style={{
+              color: isUser ? "rgba(255, 255, 255, 0.8)" : colors.textSecondary,
+            }}
           >
             {formatTime(item.timestamp)}
           </Text>
@@ -275,34 +281,38 @@ export default function ChatScreen() {
 
   if (!user?.employeeId) {
     return (
-      <SafeAreaView className="flex-1 bg-gray-50">
+      <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }}>
         <View className="flex-1 justify-center items-center">
-          <Text className="text-gray-500">Please login to use chat</Text>
+          <Text style={{ color: colors.textSecondary }}>Please login to use chat</Text>
         </View>
       </SafeAreaView>
     );
   }
 
   return (
-    <View className="flex-1 bg-gray-50">
+    <View className="flex-1" style={{ backgroundColor: colors.background }}>
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         className="flex-1"
       >
         {/* Header */}
         <View
-          className="bg-white px-4 py-3 border-b border-gray-200 flex-row items-center justify-between"
-          style={{ paddingTop: insets.top }}
+          className="px-4 py-3 border-b flex-row items-center justify-between"
+          style={{ 
+            backgroundColor: colors.surface, 
+            borderBottomColor: colors.border,
+            paddingTop: insets.top 
+          }}
         >
           <View className="flex-row items-center">
-            <View className="w-10 h-10 bg-blue-600 rounded-full items-center justify-center mr-3">
+            <View className="w-10 h-10 rounded-full items-center justify-center mr-3" style={{ backgroundColor: colors.primary }}>
               <Ionicons name="chatbubble-ellipses" size={20} color="white" />
             </View>
             <View>
-              <Text className="text-lg font-bold text-gray-900">
+              <Text className="text-lg font-bold" style={{ color: colors.text }}>
                 AI Assistant
               </Text>
-              <Text className="text-xs text-gray-500">
+              <Text className="text-xs" style={{ color: colors.textSecondary }}>
                 {state.sessionId ? "Online" : "Connecting..."}
               </Text>
             </View>
@@ -316,13 +326,14 @@ export default function ChatScreen() {
           renderItem={renderMessage}
           keyExtractor={(item) => item.id}
           contentContainerStyle={{ padding: 16 }}
+          style={{ backgroundColor: colors.background }}
           ListEmptyComponent={
             <View className="flex-1 justify-center items-center py-12">
-              <Ionicons name="chatbubble-outline" size={64} color="#d1d5db" />
-              <Text className="text-lg font-semibold text-gray-500 mt-4">
+              <Ionicons name="chatbubble-outline" size={64} color={colors.textTertiary} />
+              <Text className="text-lg font-semibold mt-4" style={{ color: colors.textSecondary }}>
                 Start a conversation
               </Text>
-              <Text className="text-gray-400 mt-2 text-center px-8">
+              <Text className="mt-2 text-center px-8" style={{ color: colors.textTertiary }}>
                 Ask me anything about recruitment, candidates, jobs, or
                 applications
               </Text>
@@ -331,8 +342,8 @@ export default function ChatScreen() {
           ListFooterComponent={
             state.isLoading ? (
               <View className="flex-row justify-start mb-4">
-                <View className="bg-gray-200 rounded-lg rounded-tl-none px-4 py-3">
-                  <ActivityIndicator size="small" color="#6b7280" />
+                <View className="rounded-lg rounded-tl-none px-4 py-3" style={{ backgroundColor: colors.surface }}>
+                  <ActivityIndicator size="small" color={colors.textSecondary} />
                 </View>
               </View>
             ) : null
@@ -341,31 +352,35 @@ export default function ChatScreen() {
 
         {/* Error Message */}
         {state.error && (
-          <View className="bg-red-50 border-t border-red-200 px-4 py-2">
-            <Text className="text-red-600 text-sm">{state.error}</Text>
+          <View className="border-t px-4 py-2" style={{ backgroundColor: colors.errorLight, borderTopColor: colors.error }}>
+            <Text className="text-sm" style={{ color: colors.error }}>{state.error}</Text>
           </View>
         )}
 
         {/* Input Area */}
-        <View className="bg-white border-t border-gray-200 px-4 py-3">
+        <View className="border-t px-4 py-3" style={{ backgroundColor: colors.surface, borderTopColor: colors.border }}>
           <View className="flex-row items-center">
             <TextInput
               placeholder="Type a message..."
+              placeholderTextColor={colors.textTertiary}
               value={inputText}
               onChangeText={setInputText}
               multiline
               maxLength={1000}
-              className="flex-1 bg-gray-100 rounded-lg px-4 py-3 mr-2 text-base"
+              className="flex-1 rounded-lg px-4 py-3 mr-2 text-base"
+              style={{ 
+                backgroundColor: colors.card,
+                color: colors.text,
+              }}
               onSubmitEditing={handleSendMessage}
             />
             <TouchableOpacity
               onPress={handleSendMessage}
               disabled={!inputText.trim() || state.isLoading}
-              className={`w-12 h-12 rounded-full items-center justify-center ${
-                !inputText.trim() || state.isLoading
-                  ? "bg-gray-300"
-                  : "bg-blue-600"
-              }`}
+              className="w-12 h-12 rounded-full items-center justify-center"
+              style={{
+                backgroundColor: (!inputText.trim() || state.isLoading) ? colors.textTertiary : colors.primary,
+              }}
             >
               {state.isLoading ? (
                 <ActivityIndicator size="small" color="white" />

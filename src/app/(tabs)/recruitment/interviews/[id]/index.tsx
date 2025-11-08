@@ -11,6 +11,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { recruitmentAPI, Interview } from '@/services/api/recruitment';
+import { shareService } from '@/utils/share';
+import { calendarService } from '@/services/calendar';
 
 export default function InterviewDetailScreen() {
   const router = useRouter();
@@ -18,12 +20,38 @@ export default function InterviewDetailScreen() {
   const insets = useSafeAreaInsets();
   const [interview, setInterview] = useState<Interview | null>(null);
   const [loading, setLoading] = useState(true);
+  const [calendarEventId, setCalendarEventId] = useState<string | null>(null);
+
+  const checkCalendarEvent = useCallback(async (interviewData: Interview) => {
+    try {
+      const startDate = new Date(interviewData.scheduledAt);
+      const endDate = new Date(startDate.getTime() + interviewData.duration * 60 * 1000);
+      const events = await calendarService.getEventsInRange(startDate, endDate);
+      
+      const candidateName = interviewData.application?.candidate
+        ? `${interviewData.application.candidate.firstName} ${interviewData.application.candidate.lastName}`
+        : 'Unknown Candidate';
+      const jobTitle = interviewData.application?.jobPosting?.title || 'Unknown Position';
+      const expectedTitle = `Interview: ${candidateName} - ${jobTitle}`;
+      
+      const matchingEvent = events.find((event) => event.title === expectedTitle);
+      if (matchingEvent) {
+        setCalendarEventId(matchingEvent.id);
+      }
+    } catch (error) {
+      console.error('Error checking calendar event:', error);
+    }
+  }, []);
 
   const fetchInterview = useCallback(async (interviewId: number) => {
     try {
       setLoading(true);
       const interviewData = await recruitmentAPI.getInterviewById(interviewId);
       setInterview(interviewData);
+      
+      if (interviewData) {
+        await checkCalendarEvent(interviewData);
+      }
     } catch (error) {
       console.error('Error fetching interview:', error);
       Alert.alert('Error', 'Failed to load interview details');
@@ -31,7 +59,7 @@ export default function InterviewDetailScreen() {
     } finally {
       setLoading(false);
     }
-  }, [router]);
+  }, [router, checkCalendarEvent]);
 
   useEffect(() => {
     if (params.id) {
@@ -45,6 +73,11 @@ export default function InterviewDetailScreen() {
 
   const handleViewNotes = () => {
     router.push(`/recruitment/interviews/${params.id}/notes`);
+  };
+
+  const handleShare = async () => {
+    if (!interview) return;
+    await shareService.shareInterview(interview);
   };
 
   const handleMarkAsCompleted = async () => {
@@ -188,9 +221,14 @@ export default function InterviewDetailScreen() {
               </View>
             </View>
           </View>
-          <TouchableOpacity onPress={handleEdit} className="ml-2">
-            <Ionicons name="create-outline" size={24} color="#2563eb" />
-          </TouchableOpacity>
+          <View className="flex-row gap-2">
+            <TouchableOpacity onPress={handleShare} className="p-2">
+              <Ionicons name="share-outline" size={24} color="#2563eb" />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={handleEdit} className="p-2">
+              <Ionicons name="create-outline" size={24} color="#2563eb" />
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
 
@@ -335,6 +373,31 @@ export default function InterviewDetailScreen() {
             )}
           </View>
         )}
+
+        {/* Calendar Actions */}
+        <View className="mb-4">
+          {calendarEventId ? (
+            <TouchableOpacity
+              onPress={handleRemoveFromCalendar}
+              className="bg-orange-600 px-6 py-4 rounded-lg"
+            >
+              <View className="flex-row items-center justify-center">
+                <Ionicons name="calendar-outline" size={20} color="white" />
+                <Text className="text-white font-semibold ml-2">Remove from Calendar</Text>
+              </View>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              onPress={handleAddToCalendar}
+              className="bg-purple-600 px-6 py-4 rounded-lg"
+            >
+              <View className="flex-row items-center justify-center">
+                <Ionicons name="calendar-outline" size={20} color="white" />
+                <Text className="text-white font-semibold ml-2">Add to Calendar</Text>
+              </View>
+            </TouchableOpacity>
+          )}
+        </View>
 
         {/* Actions */}
         <View className="space-y-3">

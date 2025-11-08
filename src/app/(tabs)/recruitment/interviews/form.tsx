@@ -24,6 +24,7 @@ import {
 import { employeeAPI } from '@/services/api/employees';
 import { EmployeeResponseDto } from '@/types/employee';
 import { companyAPI, Headquarter } from '@/services/api/company';
+import { reminderService } from '@/services/reminders';
 
 export default function InterviewFormScreen() {
   const router = useRouter();
@@ -40,6 +41,7 @@ export default function InterviewFormScreen() {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [selectedInterviewers, setSelectedInterviewers] = useState<number[]>([]);
+  const [reminderMinutes, setReminderMinutes] = useState<number>(60);
 
   const [formData, setFormData] = useState({
     candidateId: 0,
@@ -205,8 +207,23 @@ export default function InterviewFormScreen() {
           meetingUrl: formData.interviewType === 'online' ? meetingLink : undefined,
           notes: formData.notes || undefined,
         };
-        await recruitmentAPI.updateInterview(Number(params.id), updateData);
+        const updatedInterview = await recruitmentAPI.updateInterview(Number(params.id), updateData);
         Alert.alert('Success', 'Interview updated successfully');
+        
+        if (updatedInterview && updatedInterview.scheduledAt) {
+          const scheduledDate = new Date(updatedInterview.scheduledAt);
+          const candidateName = interview?.candidate
+            ? `${interview.candidate.firstName} ${interview.candidate.lastName}`
+            : undefined;
+          const jobTitle = interview?.jobPosting?.title;
+          await reminderService.updateReminder(
+            Number(params.id),
+            scheduledDate,
+            reminderMinutes,
+            candidateName,
+            jobTitle
+          );
+        }
       } else {
         // Create interview - API might expect candidate_id, job_id format
         // For now, using the CreateInterviewRequest format but might need adjustment

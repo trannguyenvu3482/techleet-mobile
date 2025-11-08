@@ -15,6 +15,7 @@ export default function RecruitmentLayout() {
       <Stack.Screen name="applications" />
       <Stack.Screen name="questions" />
       <Stack.Screen name="question-sets" />
+      <Stack.Screen name="reports" />
     </Stack>
   );
 }

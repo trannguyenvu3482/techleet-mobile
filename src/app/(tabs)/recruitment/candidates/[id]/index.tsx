@@ -12,6 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { recruitmentAPI, Candidate, Application, CandidateFile } from '@/services/api/recruitment';
+import { shareService } from '@/utils/share';
 
 export default function CandidateDetailScreen() {
   const router = useRouter();
@@ -132,6 +133,11 @@ export default function CandidateDetailScreen() {
     }
   };
 
+  const handleShare = async () => {
+    if (!candidate) return;
+    await shareService.shareCandidate(candidate);
+  };
+
   const handleOpenUrl = (url: string) => {
     if (url && (url.startsWith('http://') || url.startsWith('https://'))) {
       Linking.openURL(url).catch((err) => {
@@ -225,12 +231,17 @@ export default function CandidateDetailScreen() {
             </Text>
             <Text className="text-sm text-gray-600">{candidate.email}</Text>
           </View>
-          <TouchableOpacity
-            onPress={() => router.push(`/recruitment/candidates/form?id=${candidate.candidateId}`)}
-            className="ml-2"
-          >
-            <Ionicons name="create-outline" size={24} color="#2563eb" />
-          </TouchableOpacity>
+          <View className="flex-row gap-2">
+            <TouchableOpacity onPress={handleShare} className="p-2">
+              <Ionicons name="share-outline" size={24} color="#2563eb" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => router.push(`/recruitment/candidates/form?id=${candidate.candidateId}`)}
+              className="p-2"
+            >
+              <Ionicons name="create-outline" size={24} color="#2563eb" />
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Quick Actions */}

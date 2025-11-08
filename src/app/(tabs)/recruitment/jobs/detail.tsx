@@ -12,11 +12,16 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { recruitmentAPI, JobPosting } from '@/services/api/recruitment';
+import { shareService } from '@/utils/share';
+import { useThemeStore } from '@/store/theme-store';
+import { getColors } from '@/theme/colors';
 
 export default function JobDetailScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ id: string }>();
   const insets = useSafeAreaInsets();
+  const { isDark } = useThemeStore();
+  const colors = getColors(isDark);
   const [job, setJob] = useState<JobPosting | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
@@ -119,6 +124,11 @@ export default function JobDetailScreen() {
     router.push(`/recruitment/jobs/${job.jobPostingId}/applications`);
   };
 
+  const handleShare = async () => {
+    if (!job) return;
+    await shareService.shareJob(job);
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'published':
@@ -189,20 +199,20 @@ export default function JobDetailScreen() {
   }
 
   return (
-    <View className="flex-1 bg-gray-50" style={{ paddingTop: insets.top }}>
+    <View className="flex-1" style={{ backgroundColor: colors.background, paddingTop: insets.top }}>
       {/* Header */}
-      <View className="bg-white border-b border-gray-200 px-4 py-3">
+      <View className="border-b px-4 py-3" style={{ backgroundColor: colors.surface, borderBottomColor: colors.border }}>
         <View className="flex-row items-center justify-between mb-3">
           <TouchableOpacity onPress={() => router.back()} className="mr-3">
-            <Ionicons name="arrow-back" size={24} color="#111827" />
+            <Ionicons name="arrow-back" size={24} color={colors.text} />
           </TouchableOpacity>
           <View className="flex-1">
-            <Text className="text-xl font-bold text-gray-900" numberOfLines={1}>
+            <Text className="text-xl font-bold" style={{ color: colors.text }} numberOfLines={1}>
               {job.title}
             </Text>
           </View>
           <View
-            className={`px-3 py-1 rounded-full ml-2`}
+            className="px-3 py-1 rounded-full ml-2"
             style={{ backgroundColor: `${getStatusColor(job.status)}20` }}
           >
             <Text
@@ -212,13 +222,17 @@ export default function JobDetailScreen() {
               {getStatusLabel(job.status)}
             </Text>
           </View>
+          <TouchableOpacity onPress={handleShare} className="ml-3 p-2">
+            <Ionicons name="share-outline" size={24} color={colors.primary} />
+          </TouchableOpacity>
         </View>
 
         {/* Action Buttons */}
         <View className="flex-row gap-2">
           <TouchableOpacity
             onPress={() => router.push(`/recruitment/jobs/form?id=${job.jobPostingId}`)}
-            className="flex-1 bg-blue-600 px-4 py-2 rounded-lg flex-row items-center justify-center"
+            className="flex-1 px-4 py-2 rounded-lg flex-row items-center justify-center"
+            style={{ backgroundColor: colors.primary }}
           >
             <Ionicons name="create-outline" size={18} color="white" />
             <Text className="text-white font-semibold ml-2">Edit</Text>
@@ -227,7 +241,8 @@ export default function JobDetailScreen() {
             <TouchableOpacity
               onPress={handlePublish}
               disabled={actionLoading}
-              className="flex-1 bg-green-600 px-4 py-2 rounded-lg flex-row items-center justify-center"
+              className="flex-1 px-4 py-2 rounded-lg flex-row items-center justify-center"
+              style={{ backgroundColor: colors.secondary }}
             >
               {actionLoading ? (
                 <ActivityIndicator size="small" color="white" />
@@ -243,7 +258,8 @@ export default function JobDetailScreen() {
             <TouchableOpacity
               onPress={handleClose}
               disabled={actionLoading}
-              className="flex-1 bg-orange-600 px-4 py-2 rounded-lg flex-row items-center justify-center"
+              className="flex-1 px-4 py-2 rounded-lg flex-row items-center justify-center"
+              style={{ backgroundColor: colors.warning }}
             >
               {actionLoading ? (
                 <ActivityIndicator size="small" color="white" />
@@ -258,139 +274,141 @@ export default function JobDetailScreen() {
           <TouchableOpacity
             onPress={handleDelete}
             disabled={actionLoading}
-            className="bg-red-600 px-4 py-2 rounded-lg flex-row items-center justify-center"
+            className="px-4 py-2 rounded-lg flex-row items-center justify-center"
+            style={{ backgroundColor: colors.error }}
           >
             <Ionicons name="trash-outline" size={18} color="white" />
           </TouchableOpacity>
         </View>
       </View>
 
-      <ScrollView className="flex-1" contentContainerStyle={{ padding: 16 }}>
+      <ScrollView className="flex-1" contentContainerStyle={{ padding: 16 }} style={{ backgroundColor: colors.background }}>
         {/* Quick Info */}
-        <View className="bg-white rounded-lg p-4 mb-4 border border-gray-200">
+        <View className="rounded-lg p-4 mb-4 border" style={{ backgroundColor: colors.card, borderColor: colors.border }}>
           <View className="flex-row items-center mb-3">
-            <Ionicons name="cash-outline" size={20} color="#6b7280" />
-            <Text className="text-sm text-gray-600 ml-2">Salary</Text>
+            <Ionicons name="cash-outline" size={20} color={colors.textSecondary} />
+            <Text className="text-sm ml-2" style={{ color: colors.textSecondary }}>Salary</Text>
           </View>
-          <Text className="text-base font-semibold text-gray-900 mb-3">
+          <Text className="text-base font-semibold mb-3" style={{ color: colors.text }}>
             {formatSalary(job.salaryMin, job.salaryMax)}
           </Text>
 
           <View className="flex-row items-center mb-3">
-            <Ionicons name="location-outline" size={20} color="#6b7280" />
-            <Text className="text-sm text-gray-600 ml-2">Location</Text>
+            <Ionicons name="location-outline" size={20} color={colors.textSecondary} />
+            <Text className="text-sm ml-2" style={{ color: colors.textSecondary }}>Location</Text>
           </View>
-          <Text className="text-base font-semibold text-gray-900 mb-3">
+          <Text className="text-base font-semibold mb-3" style={{ color: colors.text }}>
             {job.location || 'Not specified'}
           </Text>
 
           <View className="flex-row items-center mb-3">
-            <Ionicons name="briefcase-outline" size={20} color="#6b7280" />
-            <Text className="text-sm text-gray-600 ml-2">Employment Type</Text>
+            <Ionicons name="briefcase-outline" size={20} color={colors.textSecondary} />
+            <Text className="text-sm ml-2" style={{ color: colors.textSecondary }}>Employment Type</Text>
           </View>
-          <Text className="text-base font-semibold text-gray-900 mb-3">
+          <Text className="text-base font-semibold mb-3" style={{ color: colors.text }}>
             {job.employmentType}
           </Text>
 
           <View className="flex-row items-center mb-3">
-            <Ionicons name="person-outline" size={20} color="#6b7280" />
-            <Text className="text-sm text-gray-600 ml-2">Experience Level</Text>
+            <Ionicons name="person-outline" size={20} color={colors.textSecondary} />
+            <Text className="text-sm ml-2" style={{ color: colors.textSecondary }}>Experience Level</Text>
           </View>
-          <Text className="text-base font-semibold text-gray-900 mb-3">
+          <Text className="text-base font-semibold mb-3" style={{ color: colors.text }}>
             {job.experienceLevel}
           </Text>
 
           <View className="flex-row items-center mb-3">
-            <Ionicons name="calendar-outline" size={20} color="#6b7280" />
-            <Text className="text-sm text-gray-600 ml-2">Deadline</Text>
+            <Ionicons name="calendar-outline" size={20} color={colors.textSecondary} />
+            <Text className="text-sm ml-2" style={{ color: colors.textSecondary }}>Deadline</Text>
           </View>
-          <Text className="text-base font-semibold text-gray-900 mb-3">
+          <Text className="text-base font-semibold mb-3" style={{ color: colors.text }}>
             {formatDate(job.applicationDeadline)}
           </Text>
 
           <View className="flex-row items-center mb-3">
-            <Ionicons name="people-outline" size={20} color="#6b7280" />
-            <Text className="text-sm text-gray-600 ml-2">Vacancies</Text>
+            <Ionicons name="people-outline" size={20} color={colors.textSecondary} />
+            <Text className="text-sm ml-2" style={{ color: colors.textSecondary }}>Vacancies</Text>
           </View>
-          <Text className="text-base font-semibold text-gray-900 mb-3">
+          <Text className="text-base font-semibold mb-3" style={{ color: colors.text }}>
             {job.vacancies}
           </Text>
 
           <TouchableOpacity
             onPress={handleViewApplications}
-            className="mt-3 bg-blue-100 px-4 py-3 rounded-lg"
+            className="mt-3 px-4 py-3 rounded-lg"
+            style={{ backgroundColor: colors.primaryLight }}
           >
             <View className="flex-row items-center justify-between">
               <View className="flex-row items-center">
-                <Ionicons name="document-text-outline" size={20} color="#2563eb" />
-                <Text className="text-base font-semibold text-blue-600 ml-2">
+                <Ionicons name="document-text-outline" size={20} color={colors.primary} />
+                <Text className="text-base font-semibold ml-2" style={{ color: colors.primary }}>
                   View Applications {job.applicationCount ? `(${job.applicationCount})` : ''}
                 </Text>
               </View>
-              <Ionicons name="chevron-forward" size={20} color="#2563eb" />
+              <Ionicons name="chevron-forward" size={20} color={colors.primary} />
             </View>
           </TouchableOpacity>
         </View>
 
         {/* Description */}
-        <View className="bg-white rounded-lg p-4 mb-4 border border-gray-200">
-          <Text className="text-lg font-bold text-gray-900 mb-3">Description</Text>
-          <Text className="text-sm text-gray-700 leading-6">{job.description}</Text>
+        <View className="rounded-lg p-4 mb-4 border" style={{ backgroundColor: colors.card, borderColor: colors.border }}>
+          <Text className="text-lg font-bold mb-3" style={{ color: colors.text }}>Description</Text>
+          <Text className="text-sm leading-6" style={{ color: colors.text }}>{job.description}</Text>
         </View>
 
         {/* Requirements */}
         {job.requirements && (
-          <View className="bg-white rounded-lg p-4 mb-4 border border-gray-200">
-            <Text className="text-lg font-bold text-gray-900 mb-3">Requirements</Text>
-            <Text className="text-sm text-gray-700 leading-6">{job.requirements}</Text>
+          <View className="rounded-lg p-4 mb-4 border" style={{ backgroundColor: colors.card, borderColor: colors.border }}>
+            <Text className="text-lg font-bold mb-3" style={{ color: colors.text }}>Requirements</Text>
+            <Text className="text-sm leading-6" style={{ color: colors.text }}>{job.requirements}</Text>
           </View>
         )}
 
         {/* Benefits */}
         {job.benefits && (
-          <View className="bg-white rounded-lg p-4 mb-4 border border-gray-200">
-            <Text className="text-lg font-bold text-gray-900 mb-3">Benefits</Text>
-            <Text className="text-sm text-gray-700 leading-6">{job.benefits}</Text>
+          <View className="rounded-lg p-4 mb-4 border" style={{ backgroundColor: colors.card, borderColor: colors.border }}>
+            <Text className="text-lg font-bold mb-3" style={{ color: colors.text }}>Benefits</Text>
+            <Text className="text-sm leading-6" style={{ color: colors.text }}>{job.benefits}</Text>
           </View>
         )}
 
 
         {/* Metadata */}
-        <View className="bg-white rounded-lg p-4 mb-4 border border-gray-200">
-          <Text className="text-lg font-bold text-gray-900 mb-3">Additional Info</Text>
+        <View className="rounded-lg p-4 mb-4 border" style={{ backgroundColor: colors.card, borderColor: colors.border }}>
+          <Text className="text-lg font-bold mb-3" style={{ color: colors.text }}>Additional Info</Text>
           <View className="space-y-2">
             <View className="flex-row justify-between">
-              <Text className="text-sm text-gray-600">Created</Text>
-              <Text className="text-sm font-semibold text-gray-900">
+              <Text className="text-sm" style={{ color: colors.textSecondary }}>Created</Text>
+              <Text className="text-sm font-semibold" style={{ color: colors.text }}>
                 {formatDate(job.createdAt)}
               </Text>
             </View>
             <View className="flex-row justify-between">
-              <Text className="text-sm text-gray-600">Last Updated</Text>
-              <Text className="text-sm font-semibold text-gray-900">
+              <Text className="text-sm" style={{ color: colors.textSecondary }}>Last Updated</Text>
+              <Text className="text-sm font-semibold" style={{ color: colors.text }}>
                 {formatDate(job.updatedAt)}
               </Text>
             </View>
             {job.educationLevel && (
               <View className="flex-row justify-between">
-                <Text className="text-sm text-gray-600">Education Level</Text>
-                <Text className="text-sm font-semibold text-gray-900">
+                <Text className="text-sm" style={{ color: colors.textSecondary }}>Education Level</Text>
+                <Text className="text-sm font-semibold" style={{ color: colors.text }}>
                   {job.educationLevel}
                 </Text>
               </View>
             )}
             {job.minExperience !== undefined && job.maxExperience !== undefined && (
               <View className="flex-row justify-between">
-                <Text className="text-sm text-gray-600">Experience Range</Text>
-                <Text className="text-sm font-semibold text-gray-900">
+                <Text className="text-sm" style={{ color: colors.textSecondary }}>Experience Range</Text>
+                <Text className="text-sm font-semibold" style={{ color: colors.text }}>
                   {job.minExperience} - {job.maxExperience} years
                 </Text>
               </View>
             )}
             {job.skills && (
               <View className="flex-row justify-between">
-                <Text className="text-sm text-gray-600">Skills</Text>
-                <Text className="text-sm font-semibold text-gray-900 flex-1 text-right">
+                <Text className="text-sm" style={{ color: colors.textSecondary }}>Skills</Text>
+                <Text className="text-sm font-semibold flex-1 text-right" style={{ color: colors.text }}>
                   {job.skills}
                 </Text>
               </View>
