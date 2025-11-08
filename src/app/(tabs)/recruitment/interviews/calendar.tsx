@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { recruitmentAPI, Interview } from '@/services/api/recruitment';
 import { calendarService } from '@/services/calendar';
@@ -23,6 +24,8 @@ type ViewMode = 'list' | 'week' | 'month';
 export default function InterviewCalendarScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation('recruitment');
+  const { t: tCommon } = useTranslation('common');
   const { isDark } = useThemeStore();
   const colors = getColors(isDark);
   const [interviews, setInterviews] = useState<Interview[]>([]);
@@ -73,12 +76,12 @@ export default function InterviewCalendarScreen() {
       await fetchCalendarEvents();
     } catch (error) {
       console.error('Error fetching interviews:', error);
-      Alert.alert('Error', 'Failed to load interviews');
+      Alert.alert(tCommon('error'), t('failedToLoadInterviews'));
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [fetchCalendarEvents]);
+  }, [fetchCalendarEvents, t, tCommon]);
 
   useEffect(() => {
     fetchInterviews();
@@ -101,8 +104,8 @@ export default function InterviewCalendarScreen() {
     try {
       const candidateName = interview.application?.candidate
         ? `${interview.application.candidate.firstName} ${interview.application.candidate.lastName}`
-        : 'Unknown Candidate';
-      const jobTitle = interview.application?.jobPosting?.title || 'Unknown Position';
+        : t('unknownCandidate');
+      const jobTitle = interview.application?.jobPosting?.title || t('unknownPosition');
 
       const event = calendarService.createInterviewEvent({
         interviewId: interview.interviewId,
@@ -117,12 +120,12 @@ export default function InterviewCalendarScreen() {
 
       const eventId = await calendarService.createEvent(event);
       if (eventId) {
-        Alert.alert('Success', 'Interview added to calendar');
+        Alert.alert(tCommon('success'), t('interviewAddedToCalendar'));
         await fetchCalendarEvents();
       }
     } catch (error) {
       console.error('Error adding to calendar:', error);
-      Alert.alert('Error', 'Failed to add interview to calendar');
+      Alert.alert(tCommon('error'), t('failedToAddToCalendar'));
     }
   };
 
@@ -182,14 +185,14 @@ export default function InterviewCalendarScreen() {
                     {dayInterviews.length > 0 && (
                       <View className="px-2 py-1 rounded-full" style={{ backgroundColor: colors.primaryLight }}>
                         <Text className="text-xs font-semibold" style={{ color: colors.primary }}>
-                          {dayInterviews.length} interview{dayInterviews.length > 1 ? 's' : ''}
+                          {dayInterviews.length} {dayInterviews.length !== 1 ? t('interviews') : t('interview')}
                         </Text>
                       </View>
                     )}
                     {dayEvents.length > 0 && (
                       <View className="px-2 py-1 rounded-full" style={{ backgroundColor: colors.purpleLight }}>
                         <Text className="text-xs font-semibold" style={{ color: colors.purple }}>
-                          {dayEvents.length} event{dayEvents.length > 1 ? 's' : ''}
+                          {dayEvents.length} {dayEvents.length !== 1 ? t('events') : t('event')}
                         </Text>
                       </View>
                     )}
@@ -209,7 +212,7 @@ export default function InterviewCalendarScreen() {
                           {formatDateTime(interview.scheduledAt)}
                         </Text>
                         <Text className="text-xs" style={{ color: colors.textSecondary }}>
-                          Interview #{interview.interviewId}
+                          {t('interview')} #{interview.interviewId}
                         </Text>
                       </TouchableOpacity>
                     ))}
@@ -239,7 +242,7 @@ export default function InterviewCalendarScreen() {
                 )}
 
                 {dayInterviews.length === 0 && dayEvents.length === 0 && (
-                  <Text className="text-xs text-center py-2" style={{ color: colors.textTertiary }}>No events</Text>
+                  <Text className="text-xs text-center py-2" style={{ color: colors.textTertiary }}>{t('noEvents')}</Text>
                 )}
               </View>
             </View>
@@ -390,7 +393,7 @@ export default function InterviewCalendarScreen() {
       <View className="flex-1" style={{ backgroundColor: colors.background, paddingTop: insets.top }}>
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator size="large" color={colors.primary} />
-          <Text className="mt-4" style={{ color: colors.textSecondary }}>Loading interviews...</Text>
+          <Text className="mt-4" style={{ color: colors.textSecondary }}>{t('loadingInterviews')}</Text>
         </View>
       </View>
     );
@@ -401,14 +404,17 @@ export default function InterviewCalendarScreen() {
       {/* Header */}
       <View className="border-b px-4 py-3" style={{ backgroundColor: colors.surface, borderBottomColor: colors.border }}>
         <View className="flex-row items-center justify-between mb-3">
-          <Text className="text-2xl font-bold" style={{ color: colors.text }}>Interview Calendar</Text>
+          <TouchableOpacity onPress={() => router.back()} className="mr-3">
+            <Ionicons name="arrow-back" size={24} color={colors.text} />
+          </TouchableOpacity>
+          <Text className="text-2xl font-bold flex-1" style={{ color: colors.text }}>{t('interviewCalendar')}</Text>
           <View className="flex-row gap-2">
             <TouchableOpacity
               onPress={handleCreateInterview}
               className="px-4 py-2 rounded-lg"
               style={{ backgroundColor: colors.primary }}
             >
-              <Text className="text-white font-semibold">Schedule</Text>
+              <Text className="text-white font-semibold">{t('schedule')}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -428,7 +434,7 @@ export default function InterviewCalendarScreen() {
                 color: viewMode === 'list' ? 'white' : colors.textSecondary,
               }}
             >
-              List
+              {t('list')}
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
@@ -444,7 +450,7 @@ export default function InterviewCalendarScreen() {
                 color: viewMode === 'week' ? 'white' : colors.textSecondary,
               }}
             >
-              Week
+              {t('week')}
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
@@ -460,7 +466,7 @@ export default function InterviewCalendarScreen() {
                 color: viewMode === 'month' ? 'white' : colors.textSecondary,
               }}
             >
-              Month
+              {t('month')}
             </Text>
           </TouchableOpacity>
         </View>
@@ -487,7 +493,7 @@ export default function InterviewCalendarScreen() {
               className="px-4 py-2 rounded-lg"
               style={{ backgroundColor: colors.card }}
             >
-              <Text className="text-sm font-semibold" style={{ color: colors.text }}>Today</Text>
+              <Text className="text-sm font-semibold" style={{ color: colors.text }}>{tCommon('today')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               onPress={() => {
@@ -510,25 +516,25 @@ export default function InterviewCalendarScreen() {
       {/* Quick Stats */}
       <View className="px-4 pt-4 pb-2">
         <View className="rounded-lg p-4 mb-4 border" style={{ backgroundColor: colors.card, borderColor: colors.border }}>
-          <Text className="text-lg font-bold mb-3" style={{ color: colors.text }}>Quick Stats</Text>
+          <Text className="text-lg font-bold mb-3" style={{ color: colors.text }}>{t('quickStats')}</Text>
           <View className="flex-row justify-between">
             <View className="items-center">
               <Text className="text-2xl font-bold" style={{ color: colors.primary }}>
                 {interviews.filter((i) => i.status === 'scheduled').length}
               </Text>
-              <Text className="text-xs mt-1" style={{ color: colors.textSecondary }}>Scheduled</Text>
+              <Text className="text-xs mt-1" style={{ color: colors.textSecondary }}>{t('scheduled')}</Text>
             </View>
             <View className="items-center">
               <Text className="text-2xl font-bold" style={{ color: colors.secondary }}>
                 {interviews.filter((i) => i.status === 'completed').length}
               </Text>
-              <Text className="text-xs mt-1" style={{ color: colors.textSecondary }}>Completed</Text>
+              <Text className="text-xs mt-1" style={{ color: colors.textSecondary }}>{t('completed')}</Text>
             </View>
             <View className="items-center">
               <Text className="text-2xl font-bold" style={{ color: colors.textSecondary }}>
                 {interviews.length}
               </Text>
-              <Text className="text-xs mt-1" style={{ color: colors.textSecondary }}>Upcoming</Text>
+              <Text className="text-xs mt-1" style={{ color: colors.textSecondary }}>{t('upcoming')}</Text>
             </View>
           </View>
         </View>
@@ -540,14 +546,14 @@ export default function InterviewCalendarScreen() {
           <View className="rounded-lg p-4 mb-4 border shadow-lg" style={{ backgroundColor: colors.primary, borderColor: colors.primaryDark }}>
             <View className="flex-row items-center mb-2">
               <Ionicons name="calendar" size={20} color="white" />
-              <Text className="text-white font-bold text-lg ml-2">Next Interview</Text>
+              <Text className="text-white font-bold text-lg ml-2">{t('nextInterview')}</Text>
             </View>
             <TouchableOpacity
               onPress={() => handleInterviewPress(upcomingInterview)}
               activeOpacity={0.8}
             >
               <Text className="text-white font-semibold text-base mb-1">
-                Interview #{upcomingInterview.interviewId}
+                {t('interview')} #{upcomingInterview.interviewId}
               </Text>
               <Text className="text-sm mb-2" style={{ color: 'rgba(255, 255, 255, 0.8)' }}>
                 {formatDateTime(upcomingInterview.scheduledAt)}
@@ -563,7 +569,7 @@ export default function InterviewCalendarScreen() {
               {upcomingInterview.meetingUrl && (
                 <View className="flex-row items-center">
                   <Ionicons name="videocam-outline" size={14} color="white" />
-                  <Text className="text-xs ml-1" style={{ color: 'rgba(255, 255, 255, 0.8)' }}>Online</Text>
+                  <Text className="text-xs ml-1" style={{ color: 'rgba(255, 255, 255, 0.8)' }}>{t('online')}</Text>
                 </View>
               )}
             </TouchableOpacity>
@@ -579,14 +585,14 @@ export default function InterviewCalendarScreen() {
             <View className="flex-1 items-center justify-center py-12 px-4">
               <Ionicons name="calendar-outline" size={64} color={colors.textTertiary} />
               <Text className="text-lg font-semibold mt-4" style={{ color: colors.textSecondary }}>
-                No upcoming interviews
+                {t('noUpcomingInterviews')}
               </Text>
               <TouchableOpacity
                 onPress={handleCreateInterview}
                 className="mt-4 px-6 py-3 rounded-lg"
                 style={{ backgroundColor: colors.primary }}
               >
-                <Text className="text-white font-semibold">Schedule Interview</Text>
+                <Text className="text-white font-semibold">{t('scheduleInterview')}</Text>
               </TouchableOpacity>
             </View>
           ) : (
@@ -602,7 +608,7 @@ export default function InterviewCalendarScreen() {
                   <View className="flex-row justify-between items-start mb-2">
                     <View className="flex-1">
                       <Text className="text-base font-bold mb-1" style={{ color: colors.text }}>
-                        Interview #{interview.interviewId}
+                        {t('interview')} #{interview.interviewId}
                       </Text>
                       <Text className="text-sm mb-1" style={{ color: colors.textSecondary }}>
                         {formatDateTime(interview.scheduledAt)}
@@ -618,7 +624,7 @@ export default function InterviewCalendarScreen() {
                       {interview.meetingUrl && (
                         <View className="flex-row items-center mt-1">
                           <Ionicons name="videocam-outline" size={14} color={colors.textSecondary} />
-                          <Text className="text-xs ml-1" style={{ color: colors.primary }}>Online</Text>
+                          <Text className="text-xs ml-1" style={{ color: colors.primary }}>{t('online')}</Text>
                         </View>
                       )}
                     </View>
@@ -639,7 +645,7 @@ export default function InterviewCalendarScreen() {
                     <View className="flex-row items-center">
                       <Ionicons name="time-outline" size={14} color={colors.textSecondary} />
                       <Text className="text-xs ml-1" style={{ color: colors.textSecondary }}>
-                        Duration: {interview.duration} minutes
+                        {t('duration')}: {interview.duration} {t('minutes')}
                       </Text>
                     </View>
                     <TouchableOpacity

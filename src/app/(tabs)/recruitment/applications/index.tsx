@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Picker } from '@react-native-picker/picker';
 import { recruitmentAPI, Application, JobPosting } from '@/services/api/recruitment';
@@ -22,6 +23,8 @@ export default function ApplicationListScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ jobId?: string }>();
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation('recruitment');
+  const { t: tCommon } = useTranslation('common');
   const { isDark } = useThemeStore();
   const colors = getColors(isDark);
   const [applications, setApplications] = useState<Application[]>([]);
@@ -71,7 +74,7 @@ export default function ApplicationListScreen() {
       setTotal(response.total || response.data.length);
     } catch (error) {
       console.error('Error fetching applications:', error);
-      Alert.alert('Error', 'Failed to load applications');
+      Alert.alert(tCommon('error'), t('failedToLoadApplications'));
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -162,13 +165,13 @@ export default function ApplicationListScreen() {
   const handleExport = async () => {
     try {
       if (applications.length === 0) {
-        Alert.alert('No Data', 'There are no applications to export');
+        Alert.alert(tCommon('noData'), t('noApplications'));
         return;
       }
       await exportService.exportApplicationsToCSV(applications);
     } catch (error) {
       console.error('Error exporting applications:', error);
-      Alert.alert('Error', 'Failed to export applications');
+      Alert.alert(tCommon('error'), t('failedToLoadApplications'));
     }
   };
 
@@ -194,13 +197,13 @@ export default function ApplicationListScreen() {
           <Text className="text-base font-bold mb-1" style={{ color: colors.text }}>
             {item.candidate
               ? `${item.candidate.firstName} ${item.candidate.lastName}`
-              : 'Unknown Candidate'}
+              : t('candidate')}
           </Text>
           <Text className="text-sm mb-1" style={{ color: colors.textSecondary }}>
-            {item.jobPosting?.title || 'Unknown Position'}
+            {item.jobPosting?.title || t('jobPosting')}
           </Text>
           <Text className="text-xs" style={{ color: colors.textTertiary }}>
-            Application #{item.applicationId} • {formatDate(item.appliedAt)}
+            {t('application')} #{item.applicationId} • {formatDate(item.appliedAt)}
           </Text>
         </View>
         <View
@@ -227,7 +230,7 @@ export default function ApplicationListScreen() {
           <View className="flex-row items-center">
             <Ionicons name="star-outline" size={14} color={colors.warning} />
             <Text className="text-xs font-semibold ml-1" style={{ color: colors.text }}>
-              Score: {item.score.toFixed(1)}
+              {t('score')} {item.score.toFixed(1)}
             </Text>
           </View>
         )}
@@ -239,10 +242,10 @@ export default function ApplicationListScreen() {
     <View className="items-center justify-center py-12">
       <Ionicons name="document-text-outline" size={64} color={colors.textTertiary} />
       <Text className="text-lg font-semibold mt-4" style={{ color: colors.textSecondary }}>
-        No applications found
+        {t('noApplications')}
       </Text>
       <Text className="mt-2" style={{ color: colors.textTertiary }}>
-        {searchTerm ? 'Try adjusting your filters' : 'No applications available'}
+        {searchTerm ? t('tryAdjustingFilters') : t('noApplications')}
       </Text>
     </View>
   );
@@ -252,7 +255,7 @@ export default function ApplicationListScreen() {
       <View className="flex-1" style={{ backgroundColor: colors.background, paddingTop: insets.top }}>
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator size="large" color={colors.primary} />
-          <Text className="mt-4" style={{ color: colors.textSecondary }}>Loading applications...</Text>
+          <Text className="mt-4" style={{ color: colors.textSecondary }}>{t('loadingApplications')}</Text>
         </View>
       </View>
     );
@@ -263,7 +266,10 @@ export default function ApplicationListScreen() {
       {/* Header */}
       <View className="border-b px-4 py-3" style={{ backgroundColor: colors.surface, borderBottomColor: colors.border }}>
         <View className="flex-row items-center justify-between mb-3">
-          <Text className="text-2xl font-bold flex-1" style={{ color: colors.text }}>Applications</Text>
+          <TouchableOpacity onPress={() => router.back()} className="mr-3">
+            <Ionicons name="arrow-back" size={24} color={colors.text} />
+          </TouchableOpacity>
+          <Text className="text-2xl font-bold flex-1" style={{ color: colors.text }}>{t('applications')}</Text>
           <TouchableOpacity onPress={handleExport} className="p-2">
             <Ionicons name="download-outline" size={24} color={colors.secondary} />
           </TouchableOpacity>
@@ -279,7 +285,7 @@ export default function ApplicationListScreen() {
           />
           <TextInput
             className="rounded-lg pl-10 pr-4 py-3"
-            placeholder="Search applications..."
+            placeholder={t('searchApplications')}
             placeholderTextColor={colors.textTertiary}
             value={searchTerm}
             onChangeText={handleSearch}
@@ -295,10 +301,10 @@ export default function ApplicationListScreen() {
         >
           <View className="flex-row items-center">
             <Ionicons name="filter-outline" size={18} color={colors.textSecondary} />
-            <Text className="text-sm font-semibold ml-2" style={{ color: colors.text }}>Filters & Sort</Text>
+            <Text className="text-sm font-semibold ml-2" style={{ color: colors.text }}>{t('filters')}</Text>
             {(statusFilter !== 'all' || jobFilter !== 'all' || sortBy !== 'appliedAt') && (
               <View className="ml-2 rounded-full px-2 py-0.5" style={{ backgroundColor: colors.primary }}>
-                <Text className="text-xs text-white font-semibold">Active</Text>
+                <Text className="text-xs text-white font-semibold">{t('filters.active')}</Text>
               </View>
             )}
           </View>
@@ -314,15 +320,15 @@ export default function ApplicationListScreen() {
           <View className="rounded-lg p-3 mb-2 border" style={{ backgroundColor: colors.surface, borderColor: colors.border }}>
             {/* Status Filter */}
             <View className="mb-3">
-              <Text className="text-xs font-semibold mb-2" style={{ color: colors.text }}>Status:</Text>
+              <Text className="text-xs font-semibold mb-2" style={{ color: colors.text }}>{tCommon('filter')}:</Text>
               <View className="flex-row gap-2 flex-wrap">
                 {[
-                  { value: 'all', label: 'All' },
-                  { value: 'pending', label: 'Submitted' },
-                  { value: 'reviewing', label: 'Screening' },
-                  { value: 'interview', label: 'Interviewing' },
-                  { value: 'accepted', label: 'Offer' },
-                  { value: 'rejected', label: 'Rejected' },
+                  { value: 'all', label: t('filters.all') },
+                  { value: 'pending', label: t('status.pending') },
+                  { value: 'reviewing', label: t('status.reviewing') },
+                  { value: 'interview', label: t('status.interview') },
+                  { value: 'accepted', label: t('status.accepted') },
+                  { value: 'rejected', label: t('status.rejected') },
                 ].map((filter) => (
                   <TouchableOpacity
                     key={filter.value}
@@ -351,7 +357,7 @@ export default function ApplicationListScreen() {
             {/* Job Filter */}
             {jobs.length > 0 && (
               <View className="mb-3">
-                <Text className="text-xs font-semibold mb-2" style={{ color: colors.text }}>Job:</Text>
+                <Text className="text-xs font-semibold mb-2" style={{ color: colors.text }}>{t('jobs')}:</Text>
                 <View className="flex-row gap-2 flex-wrap">
                   <TouchableOpacity
                     onPress={() => {
@@ -369,7 +375,7 @@ export default function ApplicationListScreen() {
                         color: jobFilter === 'all' ? 'white' : colors.textSecondary,
                       }}
                     >
-                      All Jobs
+                      {t('allJobs')}
                     </Text>
                   </TouchableOpacity>
                   {jobs.map((job) => (
@@ -402,11 +408,11 @@ export default function ApplicationListScreen() {
 
             {/* Sort Options */}
             <View>
-              <Text className="text-xs font-semibold mb-2" style={{ color: colors.text }}>Sort By:</Text>
+              <Text className="text-xs font-semibold mb-2" style={{ color: colors.text }}>{t('sortBy')}</Text>
               <View className="flex-row gap-2 flex-wrap">
                 {[
-                  { value: 'appliedAt', label: 'Date' },
-                  { value: 'score', label: 'Score' },
+                  { value: 'appliedAt', label: t('sortByOptions.appliedDate') },
+                  { value: 'score', label: t('sortByOptions.score') },
                 ].map((option) => (
                   <TouchableOpacity
                     key={option.value}
@@ -475,7 +481,7 @@ export default function ApplicationListScreen() {
                 {loading ? (
                   <ActivityIndicator size="small" color="white" />
                 ) : (
-                  <Text className="text-white font-semibold">Load More</Text>
+                  <Text className="text-white font-semibold">{t('loadMore')}</Text>
                 )}
               </TouchableOpacity>
             </View>

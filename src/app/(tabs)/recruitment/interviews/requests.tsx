@@ -12,10 +12,17 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { recruitmentAPI, Application } from '@/services/api/recruitment';
+import { useTranslation } from 'react-i18next';
+import { useThemeStore } from '@/store/theme-store';
+import { getColors } from '@/theme/colors';
 
 export default function InterviewRequestsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation('recruitment');
+  const { t: tCommon } = useTranslation('common');
+  const { isDark } = useThemeStore();
+  const colors = getColors(isDark);
   const [requests, setRequests] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -40,12 +47,12 @@ export default function InterviewRequestsScreen() {
       setTotal(response.total || response.data.length);
     } catch (error) {
       console.error('Error fetching interview requests:', error);
-      Alert.alert('Error', 'Failed to load interview requests');
+      Alert.alert(tCommon('error'), t('failedToLoadInterviewRequests'));
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [page]);
+  }, [page, t, tCommon]);
 
   useEffect(() => {
     if (page === 0) {
@@ -83,31 +90,32 @@ export default function InterviewRequestsScreen() {
   const renderRequestItem = ({ item }: { item: Application }) => (
     <TouchableOpacity
       onPress={() => handleRequestPress(item)}
-      className="bg-white rounded-lg p-4 mb-3 border border-gray-200 shadow-sm"
+      className="rounded-lg p-4 mb-3 border shadow-sm"
+      style={{ backgroundColor: colors.card, borderColor: colors.border }}
       activeOpacity={0.7}
     >
       <View className="flex-row justify-between items-start mb-2">
         <View className="flex-1">
-          <Text className="text-base font-bold text-gray-900 mb-1">
+          <Text className="text-base font-bold mb-1" style={{ color: colors.text }}>
             {item.candidate
               ? `${item.candidate.firstName} ${item.candidate.lastName}`
-              : 'Unknown Candidate'}
+              : t('unknownCandidate')}
           </Text>
-          <Text className="text-sm text-gray-600 mb-1">
-            {item.jobPosting?.title || 'Unknown Position'}
+          <Text className="text-sm mb-1" style={{ color: colors.textSecondary }}>
+            {item.jobPosting?.title || t('unknownPosition')}
           </Text>
-          <Text className="text-xs text-gray-500">
-            Application #{item.applicationId} • {formatDate(item.appliedAt)}
+          <Text className="text-xs" style={{ color: colors.textTertiary }}>
+            {t('application')} #{item.applicationId} • {formatDate(item.appliedAt)}
           </Text>
         </View>
-        <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
+        <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
       </View>
 
-      {item.screeningScore !== undefined && item.screeningScore !== null && (
-        <View className="flex-row items-center mt-2 pt-2 border-t border-gray-100">
-          <Ionicons name="star-outline" size={14} color="#f59e0b" />
-          <Text className="text-xs font-semibold text-gray-700 ml-1">
-            Screening Score: {item.screeningScore.toFixed(1)}/10
+      {item.score !== undefined && item.score !== null && (
+        <View className="flex-row items-center mt-2 pt-2 border-t" style={{ borderTopColor: colors.borderLight }}>
+          <Ionicons name="star-outline" size={14} color={colors.warning} />
+          <Text className="text-xs font-semibold ml-1" style={{ color: colors.text }}>
+            {t('score')}: {item.score.toFixed(1)}/10
           </Text>
         </View>
       )}
@@ -116,35 +124,38 @@ export default function InterviewRequestsScreen() {
 
   const renderEmpty = () => (
     <View className="items-center justify-center py-12">
-      <Ionicons name="document-text-outline" size={64} color="#d1d5db" />
-      <Text className="text-lg font-semibold text-gray-500 mt-4">
-        No interview requests
+      <Ionicons name="document-text-outline" size={64} color={colors.textTertiary} />
+      <Text className="text-lg font-semibold mt-4" style={{ color: colors.textSecondary }}>
+        {t('noInterviewRequests')}
       </Text>
-      <Text className="text-gray-400 mt-2">
-        All interview requests have been scheduled
+      <Text className="mt-2" style={{ color: colors.textTertiary }}>
+        {t('allInterviewRequestsScheduled')}
       </Text>
     </View>
   );
 
   if (loading && requests.length === 0) {
     return (
-      <View className="flex-1 bg-gray-50" style={{ paddingTop: insets.top }}>
+      <View className="flex-1" style={{ backgroundColor: colors.background, paddingTop: insets.top }}>
         <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color="#2563eb" />
-          <Text className="text-gray-500 mt-4">Loading interview requests...</Text>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text className="mt-4" style={{ color: colors.textSecondary }}>{t('loadingInterviewRequests')}</Text>
         </View>
       </View>
     );
   }
 
   return (
-    <View className="flex-1 bg-gray-50" style={{ paddingTop: insets.top }}>
+    <View className="flex-1" style={{ backgroundColor: colors.background, paddingTop: insets.top }}>
       {/* Header */}
-      <View className="bg-white border-b border-gray-200 px-4 py-3">
+      <View className="border-b px-4 py-3" style={{ backgroundColor: colors.surface, borderBottomColor: colors.border }}>
         <View className="flex-row items-center justify-between mb-3">
-          <Text className="text-2xl font-bold text-gray-900">Interview Requests</Text>
-          <Text className="text-sm text-gray-600">
-            {requests.length} request{requests.length !== 1 ? 's' : ''}
+          <TouchableOpacity onPress={() => router.back()} className="mr-3">
+            <Ionicons name="arrow-back" size={24} color={colors.text} />
+          </TouchableOpacity>
+          <Text className="text-2xl font-bold flex-1" style={{ color: colors.text }}>{t('interviewRequests')}</Text>
+          <Text className="text-sm" style={{ color: colors.textSecondary }}>
+            {requests.length} {requests.length !== 1 ? t('requests') : t('request')}
           </Text>
         </View>
       </View>
@@ -165,14 +176,16 @@ export default function InterviewRequestsScreen() {
               <TouchableOpacity
                 onPress={handleLoadMore}
                 disabled={loading}
-                className={`bg-blue-600 px-4 py-2 rounded-lg items-center ${
-                  loading ? 'opacity-50' : ''
-                }`}
+                className="px-4 py-2 rounded-lg items-center"
+                style={{
+                  backgroundColor: colors.primary,
+                  opacity: loading ? 0.5 : 1,
+                }}
               >
                 {loading ? (
                   <ActivityIndicator size="small" color="white" />
                 ) : (
-                  <Text className="text-white font-semibold">Load More</Text>
+                  <Text className="text-white font-semibold">{t('loadMore')}</Text>
                 )}
               </TouchableOpacity>
             </View>

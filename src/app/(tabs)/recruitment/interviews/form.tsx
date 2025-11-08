@@ -11,13 +11,13 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Picker } from '@react-native-picker/picker';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import {
   recruitmentAPI,
   Interview,
-  CreateInterviewRequest,
   UpdateInterviewRequest,
   Application,
 } from '@/services/api/recruitment';
@@ -25,11 +25,17 @@ import { employeeAPI } from '@/services/api/employees';
 import { EmployeeResponseDto } from '@/types/employee';
 import { companyAPI, Headquarter } from '@/services/api/company';
 import { reminderService } from '@/services/reminders';
+import { useThemeStore } from '@/store/theme-store';
+import { getColors } from '@/theme/colors';
 
 export default function InterviewFormScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ id?: string; applicationId?: string }>();
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation('recruitment');
+  const { t: tCommon } = useTranslation('common');
+  const { isDark } = useThemeStore();
+  const colors = getColors(isDark);
   const isEdit = !!params.id;
 
   const [loading, setLoading] = useState(true);
@@ -109,12 +115,12 @@ export default function InterviewFormScreen() {
       }
     } catch (error) {
       console.error('Error loading data:', error);
-      Alert.alert('Error', 'Failed to load form data');
+      Alert.alert(tCommon('error'), t('failedToLoadFormData'));
       router.back();
     } finally {
       setLoading(false);
     }
-  }, [isEdit, params.id, params.applicationId, router]);
+  }, [isEdit, params.id, params.applicationId, router, t, tCommon]);
 
   useEffect(() => {
     loadData();
@@ -158,28 +164,28 @@ export default function InterviewFormScreen() {
 
   const validateForm = (): boolean => {
     if (formData.candidateId === 0) {
-      Alert.alert('Validation Error', 'Please select a candidate');
+      Alert.alert(t('validationError'), t('pleaseSelectCandidate'));
       return false;
     }
     if (formData.jobId === 0) {
-      Alert.alert('Validation Error', 'Please select a job');
+      Alert.alert(t('validationError'), t('pleaseSelectJob'));
       return false;
     }
     if (selectedInterviewers.length === 0) {
-      Alert.alert('Validation Error', 'Please select at least one interviewer');
+      Alert.alert(t('validationError'), t('pleaseSelectInterviewer'));
       return false;
     }
     if (formData.duration < 15 || formData.duration > 480) {
-      Alert.alert('Validation Error', 'Duration must be between 15 and 480 minutes');
+      Alert.alert(t('validationError'), t('durationRangeError'));
       return false;
     }
     if (formData.interviewType === 'offline' && !formData.location.trim()) {
-      Alert.alert('Validation Error', 'Please provide a location for offline interviews');
+      Alert.alert(t('validationError'), t('pleaseProvideLocation'));
       return false;
     }
     const scheduledDateTime = formData.scheduledTime;
     if (scheduledDateTime < new Date()) {
-      Alert.alert('Validation Error', 'Interview cannot be scheduled in the past');
+      Alert.alert(t('validationError'), t('cannotSchedulePast'));
       return false;
     }
     return true;
@@ -208,14 +214,14 @@ export default function InterviewFormScreen() {
           notes: formData.notes || undefined,
         };
         const updatedInterview = await recruitmentAPI.updateInterview(Number(params.id), updateData);
-        Alert.alert('Success', 'Interview updated successfully');
+        Alert.alert(tCommon('success'), t('interviewUpdatedSuccess'));
         
         if (updatedInterview && updatedInterview.scheduledAt) {
           const scheduledDate = new Date(updatedInterview.scheduledAt);
-          const candidateName = interview?.candidate
-            ? `${interview.candidate.firstName} ${interview.candidate.lastName}`
+          const candidateName = interview?.application?.candidate
+            ? `${interview.application.candidate.firstName} ${interview.application.candidate.lastName}`
             : undefined;
-          const jobTitle = interview?.jobPosting?.title;
+          const jobTitle = interview?.application?.jobPosting?.title;
           await reminderService.updateReminder(
             Number(params.id),
             scheduledDate,
@@ -238,7 +244,7 @@ export default function InterviewFormScreen() {
         };
         // Try direct API call if format differs
         // await recruitmentAPI.createInterview(createData);
-        Alert.alert('Info', 'Create interview API integration needed - check backend format');
+        Alert.alert(tCommon('info'), t('createInterviewApiNeeded'));
         router.back();
         return;
       }
@@ -247,8 +253,8 @@ export default function InterviewFormScreen() {
     } catch (error: any) {
       console.error('Error saving interview:', error);
       const errorMessage =
-        error?.response?.data?.message || error?.message || 'Failed to save interview';
-      Alert.alert('Error', errorMessage);
+        error?.response?.data?.message || error?.message || t('failedToSaveInterview');
+      Alert.alert(tCommon('error'), errorMessage);
     } finally {
       setSaving(false);
     }
@@ -256,55 +262,55 @@ export default function InterviewFormScreen() {
 
   if (loading) {
     return (
-      <View className="flex-1 bg-gray-50">
+      <View className="flex-1" style={{ backgroundColor: colors.background }}>
         <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color="#2563eb" />
-          <Text className="text-gray-500 mt-4">Loading form data...</Text>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text className="mt-4" style={{ color: colors.textSecondary }}>{t('loadingFormData')}</Text>
         </View>
       </View>
     );
   }
 
   return (
-    <View className="flex-1 bg-gray-50" style={{ paddingTop: insets.top }}>
+    <View className="flex-1" style={{ backgroundColor: colors.background, paddingTop: insets.top }}>
       {/* Header */}
-      <View className="bg-white border-b border-gray-200 px-4 py-3">
+      <View className="border-b px-4 py-3" style={{ backgroundColor: colors.surface, borderBottomColor: colors.border }}>
         <View className="flex-row items-center justify-between mb-3">
           <TouchableOpacity onPress={() => router.back()}>
-            <Ionicons name="arrow-back" size={24} color="#111827" />
+            <Ionicons name="arrow-back" size={24} color={colors.text} />
           </TouchableOpacity>
-          <Text className="text-xl font-bold text-gray-900">
-            {isEdit ? 'Edit Interview' : 'Create Interview'}
+          <Text className="text-xl font-bold" style={{ color: colors.text }}>
+            {isEdit ? t('editInterview') : t('createInterview')}
           </Text>
           <TouchableOpacity onPress={handleSubmit} disabled={saving} className="p-2">
             {saving ? (
-              <ActivityIndicator size="small" color="#3b82f6" />
+              <ActivityIndicator size="small" color={colors.primary} />
             ) : (
-              <Ionicons name="checkmark-outline" size={24} color="#2563eb" />
+              <Ionicons name="checkmark-outline" size={24} color={colors.primary} />
             )}
           </TouchableOpacity>
         </View>
       </View>
 
-      <ScrollView className="flex-1" contentContainerStyle={{ padding: 16 }}>
+      <ScrollView className="flex-1" contentContainerStyle={{ padding: 16 }} style={{ backgroundColor: colors.background }}>
         {/* Candidate & Job (Read-only if from application) */}
         {(application || interview) && (
-          <View className="bg-white rounded-lg p-4 mb-4 border border-gray-200">
-            <Text className="text-lg font-bold text-gray-900 mb-3">Application Details</Text>
+          <View className="rounded-lg p-4 mb-4 border" style={{ backgroundColor: colors.card, borderColor: colors.border }}>
+            <Text className="text-lg font-bold mb-3" style={{ color: colors.text }}>{t('applicationDetails')}</Text>
             {application && (
               <>
                 <View className="mb-2">
-                  <Text className="text-sm text-gray-600">Candidate</Text>
-                  <Text className="text-sm font-semibold text-gray-900">
+                  <Text className="text-sm" style={{ color: colors.textSecondary }}>{t('candidate')}</Text>
+                  <Text className="text-sm font-semibold" style={{ color: colors.text }}>
                     {application.candidate
                       ? `${application.candidate.firstName} ${application.candidate.lastName}`
-                      : 'N/A'}
+                      : tCommon('nA')}
                   </Text>
                 </View>
                 <View>
-                  <Text className="text-sm text-gray-600">Job Position</Text>
-                  <Text className="text-sm font-semibold text-gray-900">
-                    {application.jobPosting?.title || 'N/A'}
+                  <Text className="text-sm" style={{ color: colors.textSecondary }}>{t('jobPosition')}</Text>
+                  <Text className="text-sm font-semibold" style={{ color: colors.text }}>
+                    {application.jobPosting?.title || tCommon('nA')}
                   </Text>
                 </View>
               </>
@@ -312,17 +318,17 @@ export default function InterviewFormScreen() {
             {interview && (
               <>
                 <View className="mb-2">
-                  <Text className="text-sm text-gray-600">Candidate</Text>
-                  <Text className="text-sm font-semibold text-gray-900">
+                  <Text className="text-sm" style={{ color: colors.textSecondary }}>{t('candidate')}</Text>
+                  <Text className="text-sm font-semibold" style={{ color: colors.text }}>
                     {interview.application?.candidate
                       ? `${interview.application.candidate.firstName} ${interview.application.candidate.lastName}`
-                      : 'N/A'}
+                      : tCommon('nA')}
                   </Text>
                 </View>
                 <View>
-                  <Text className="text-sm text-gray-600">Job Position</Text>
-                  <Text className="text-sm font-semibold text-gray-900">
-                    {interview.application?.jobPosting?.title || 'N/A'}
+                  <Text className="text-sm" style={{ color: colors.textSecondary }}>{t('jobPosition')}</Text>
+                  <Text className="text-sm font-semibold" style={{ color: colors.text }}>
+                    {interview.application?.jobPosting?.title || tCommon('nA')}
                   </Text>
                 </View>
               </>
@@ -331,23 +337,24 @@ export default function InterviewFormScreen() {
         )}
 
         {/* Schedule */}
-        <View className="bg-white rounded-lg p-4 mb-4 border border-gray-200">
-          <Text className="text-lg font-bold text-gray-900 mb-3">Schedule</Text>
+        <View className="rounded-lg p-4 mb-4 border" style={{ backgroundColor: colors.card, borderColor: colors.border }}>
+          <Text className="text-lg font-bold mb-3" style={{ color: colors.text }}>{t('schedule')}</Text>
 
           <View className="mb-3">
-            <Text className="text-sm font-semibold text-gray-700 mb-2">Date</Text>
+            <Text className="text-sm font-semibold mb-2" style={{ color: colors.text }}>{tCommon('date')}</Text>
             <TouchableOpacity
               onPress={() => setShowDatePicker(true)}
-              className="border border-gray-300 rounded-lg px-4 py-3 flex-row items-center justify-between"
+              className="border rounded-lg px-4 py-3 flex-row items-center justify-between"
+              style={{ borderColor: colors.border, backgroundColor: colors.surface }}
             >
-              <Text className="text-gray-900">
+              <Text style={{ color: colors.text }}>
                 {formData.scheduledDate.toLocaleDateString('en-US', {
                   year: 'numeric',
                   month: 'long',
                   day: 'numeric',
                 })}
               </Text>
-              <Ionicons name="calendar-outline" size={20} color="#6b7280" />
+              <Ionicons name="calendar-outline" size={20} color={colors.textSecondary} />
             </TouchableOpacity>
             {showDatePicker && (
               <DateTimePicker
@@ -361,18 +368,19 @@ export default function InterviewFormScreen() {
           </View>
 
           <View className="mb-3">
-            <Text className="text-sm font-semibold text-gray-700 mb-2">Time</Text>
+            <Text className="text-sm font-semibold mb-2" style={{ color: colors.text }}>{tCommon('time')}</Text>
             <TouchableOpacity
               onPress={() => setShowTimePicker(true)}
-              className="border border-gray-300 rounded-lg px-4 py-3 flex-row items-center justify-between"
+              className="border rounded-lg px-4 py-3 flex-row items-center justify-between"
+              style={{ borderColor: colors.border, backgroundColor: colors.surface }}
             >
-              <Text className="text-gray-900">
+              <Text style={{ color: colors.text }}>
                 {formData.scheduledTime.toLocaleTimeString('en-US', {
                   hour: '2-digit',
                   minute: '2-digit',
                 })}
               </Text>
-              <Ionicons name="time-outline" size={20} color="#6b7280" />
+              <Ionicons name="time-outline" size={20} color={colors.textSecondary} />
             </TouchableOpacity>
             {showTimePicker && (
               <DateTimePicker
@@ -385,110 +393,124 @@ export default function InterviewFormScreen() {
           </View>
 
           <View className="mb-3">
-            <Text className="text-sm font-semibold text-gray-700 mb-2">Duration (minutes)</Text>
+            <Text className="text-sm font-semibold mb-2" style={{ color: colors.text }}>{t('durationMinutes')}</Text>
             <TextInput
-              className="border border-gray-300 rounded-lg px-4 py-3 text-gray-900"
+              className="border rounded-lg px-4 py-3"
+              style={{ borderColor: colors.border, backgroundColor: colors.surface, color: colors.text }}
               keyboardType="numeric"
               value={formData.duration.toString()}
               onChangeText={(text) => handleInputChange('duration', parseInt(text) || 60)}
               placeholder="60"
+              placeholderTextColor={colors.textTertiary}
             />
           </View>
         </View>
 
         {/* Interview Type */}
-        <View className="bg-white rounded-lg p-4 mb-4 border border-gray-200">
-          <Text className="text-lg font-bold text-gray-900 mb-3">Interview Type</Text>
+        <View className="rounded-lg p-4 mb-4 border" style={{ backgroundColor: colors.card, borderColor: colors.border }}>
+          <Text className="text-lg font-bold mb-3" style={{ color: colors.text }}>{t('interviewType')}</Text>
 
           <View className="flex-row items-center justify-between mb-3">
-            <Text className="text-sm font-semibold text-gray-700">Online</Text>
+            <Text className="text-sm font-semibold" style={{ color: colors.text }}>{t('online')}</Text>
             <Switch
               value={formData.interviewType === 'online'}
               onValueChange={(value) =>
                 handleInputChange('interviewType', value ? 'online' : 'offline')
               }
+              trackColor={{ false: colors.border, true: colors.primary }}
+              thumbColor="#ffffff"
             />
           </View>
 
           {formData.interviewType === 'online' ? (
             <View className="mb-3">
-              <Text className="text-sm font-semibold text-gray-700 mb-2">Meeting Link</Text>
+              <Text className="text-sm font-semibold mb-2" style={{ color: colors.text }}>{t('meetingLink')}</Text>
               <TextInput
-                className="border border-gray-300 rounded-lg px-4 py-3 text-gray-900"
+                className="border rounded-lg px-4 py-3"
+                style={{ borderColor: colors.border, backgroundColor: colors.surface, color: colors.text }}
                 value={formData.meetingUrl}
                 onChangeText={(text) => handleInputChange('meetingUrl', text)}
-                placeholder="https://meet.google.com/..."
+                placeholder={t('meetingLinkPlaceholder')}
+                placeholderTextColor={colors.textTertiary}
                 keyboardType="url"
               />
               <TouchableOpacity
                 onPress={() => handleInputChange('meetingUrl', generateMeetingLink())}
                 className="mt-2"
               >
-                <Text className="text-sm text-blue-600">Generate Meeting Link</Text>
+                <Text className="text-sm" style={{ color: colors.primary }}>{t('generateMeetingLink')}</Text>
               </TouchableOpacity>
             </View>
           ) : (
             <View className="mb-3">
-              <Text className="text-sm font-semibold text-gray-700 mb-2">Location</Text>
-              <Picker
-                selectedValue={formData.location}
-                onValueChange={(itemValue) => handleInputChange('location', itemValue)}
-                className="border border-gray-300 rounded-lg"
-              >
-                <Picker.Item label="Select location..." value="" />
-                {headquarters.map((hq) => (
-                  <Picker.Item
-                    key={hq.headquarterId}
-                    label={hq.headquarterName}
-                    value={hq.headquarterName}
-                  />
-                ))}
-              </Picker>
+              <Text className="text-sm font-semibold mb-2" style={{ color: colors.text }}>{t('location')}</Text>
+              <View className="border rounded-lg" style={{ borderColor: colors.border }}>
+                <Picker
+                  selectedValue={formData.location}
+                  onValueChange={(itemValue) => handleInputChange('location', itemValue)}
+                  style={{ color: colors.text }}
+                >
+                  <Picker.Item label={t('selectLocation')} value="" />
+                  {headquarters.map((hq) => (
+                    <Picker.Item
+                      key={hq.headquarterId}
+                      label={hq.headquarterName}
+                      value={hq.headquarterName}
+                    />
+                  ))}
+                </Picker>
+              </View>
             </View>
           )}
         </View>
 
         {/* Interviewers */}
-        <View className="bg-white rounded-lg p-4 mb-4 border border-gray-200">
-          <Text className="text-lg font-bold text-gray-900 mb-3">Interviewers *</Text>
-          <Text className="text-xs text-gray-600 mb-3">
-            Select one or more interviewers
+        <View className="rounded-lg p-4 mb-4 border" style={{ backgroundColor: colors.card, borderColor: colors.border }}>
+          <Text className="text-lg font-bold mb-3" style={{ color: colors.text }}>{t('interviewers')} *</Text>
+          <Text className="text-xs mb-3" style={{ color: colors.textSecondary }}>
+            {t('selectInterviewers')}
           </Text>
 
           {interviewers.map((interviewer) => (
             <TouchableOpacity
               key={interviewer.employeeId}
               onPress={() => toggleInterviewer(interviewer.employeeId)}
-              className={`flex-row items-center justify-between p-3 mb-2 rounded-lg border ${
-                selectedInterviewers.includes(interviewer.employeeId)
-                  ? 'bg-blue-50 border-blue-300'
-                  : 'bg-gray-50 border-gray-200'
-              }`}
+              className="flex-row items-center justify-between p-3 mb-2 rounded-lg border"
+              style={{
+                backgroundColor: selectedInterviewers.includes(interviewer.employeeId)
+                  ? colors.primaryLight
+                  : colors.surface,
+                borderColor: selectedInterviewers.includes(interviewer.employeeId)
+                  ? colors.primary
+                  : colors.border,
+              }}
             >
               <View className="flex-1">
-                <Text className="text-sm font-semibold text-gray-900">
+                <Text className="text-sm font-semibold" style={{ color: colors.text }}>
                   {interviewer.firstName} {interviewer.lastName}
                 </Text>
                 {interviewer.email && (
-                  <Text className="text-xs text-gray-600">{interviewer.email}</Text>
+                  <Text className="text-xs" style={{ color: colors.textSecondary }}>{interviewer.email}</Text>
                 )}
               </View>
               {selectedInterviewers.includes(interviewer.employeeId) && (
-                <Ionicons name="checkmark-circle" size={24} color="#2563eb" />
+                <Ionicons name="checkmark-circle" size={24} color={colors.primary} />
               )}
             </TouchableOpacity>
           ))}
         </View>
 
         {/* Notes */}
-        <View className="bg-white rounded-lg p-4 mb-4 border border-gray-200">
-          <Text className="text-lg font-bold text-gray-900 mb-3">Notes</Text>
+        <View className="rounded-lg p-4 mb-4 border" style={{ backgroundColor: colors.card, borderColor: colors.border }}>
+          <Text className="text-lg font-bold mb-3" style={{ color: colors.text }}>{tCommon('notes')}</Text>
           <TextInput
-            className="border border-gray-300 rounded-lg px-4 py-3 text-gray-900 h-24"
+            className="border rounded-lg px-4 py-3 h-24"
+            style={{ borderColor: colors.border, backgroundColor: colors.surface, color: colors.text }}
             multiline
             value={formData.notes}
             onChangeText={(text) => handleInputChange('notes', text)}
-            placeholder="Add any notes about this interview..."
+            placeholder={t('notesPlaceholder')}
+            placeholderTextColor={colors.textTertiary}
             textAlignVertical="top"
           />
         </View>
@@ -497,16 +519,20 @@ export default function InterviewFormScreen() {
         <TouchableOpacity
           onPress={handleSubmit}
           disabled={saving}
-          className={`bg-blue-600 px-6 py-4 rounded-lg mb-6 ${saving ? 'opacity-50' : ''}`}
+          className="px-6 py-4 rounded-lg mb-6"
+          style={{
+            backgroundColor: colors.primary,
+            opacity: saving ? 0.5 : 1,
+          }}
         >
           {saving ? (
             <View className="flex-row items-center justify-center">
               <ActivityIndicator size="small" color="white" />
-              <Text className="text-white font-semibold ml-2">Saving...</Text>
+              <Text className="text-white font-semibold ml-2">{tCommon('saving')}</Text>
             </View>
           ) : (
             <Text className="text-white font-semibold text-center">
-              {isEdit ? 'Update Interview' : 'Create Interview'}
+              {isEdit ? t('updateInterview') : t('createInterview')}
             </Text>
           )}
         </TouchableOpacity>

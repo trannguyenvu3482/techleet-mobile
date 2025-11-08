@@ -10,13 +10,20 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { recruitmentAPI, QuestionSet, CreateQuestionSetRequest, UpdateQuestionSetRequest } from '@/services/api/recruitment';
+import { useThemeStore } from '@/store/theme-store';
+import { getColors } from '@/theme/colors';
 
 export default function QuestionSetFormScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ id?: string }>();
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation('recruitment');
+  const { t: tCommon } = useTranslation('common');
+  const { isDark } = useThemeStore();
+  const colors = getColors(isDark);
   const isEdit = !!params.id;
 
   const [loading, setLoading] = useState(true);
@@ -46,7 +53,7 @@ export default function QuestionSetFormScreen() {
       }
     } catch (error) {
       console.error('Error loading data:', error);
-      Alert.alert('Error', 'Failed to load question set data');
+      Alert.alert(tCommon('error'), t('failedToLoadQuestionSetData'));
       router.back();
     } finally {
       setLoading(false);
@@ -59,7 +66,7 @@ export default function QuestionSetFormScreen() {
 
   const validateForm = (): boolean => {
     if (!formData.title.trim()) {
-      Alert.alert('Validation Error', 'Title is required');
+      Alert.alert(t('validationError'), t('titleRequired'));
       return false;
     }
     return true;
@@ -79,8 +86,8 @@ export default function QuestionSetFormScreen() {
           description: formData.description.trim() || undefined,
         };
         await recruitmentAPI.updateQuestionSet(Number(params.id), updateData);
-        Alert.alert('Success', 'Question set updated successfully', [
-          { text: 'OK', onPress: () => router.back() },
+        Alert.alert(tCommon('success'), t('questionSetUpdatedSuccess'), [
+          { text: tCommon('ok'), onPress: () => router.back() },
         ]);
       } else {
         const createData: CreateQuestionSetRequest = {
@@ -88,13 +95,13 @@ export default function QuestionSetFormScreen() {
           description: formData.description.trim() || undefined,
         };
         await recruitmentAPI.createQuestionSet(createData);
-        Alert.alert('Success', 'Question set created successfully', [
-          { text: 'OK', onPress: () => router.back() },
+        Alert.alert(tCommon('success'), t('questionSetCreatedSuccess'), [
+          { text: tCommon('ok'), onPress: () => router.back() },
         ]);
       }
     } catch (error) {
       console.error('Error saving question set:', error);
-      Alert.alert('Error', 'Failed to save question set');
+      Alert.alert(tCommon('error'), t('failedToSaveQuestionSet'));
     } finally {
       setSaving(false);
     }
@@ -102,53 +109,57 @@ export default function QuestionSetFormScreen() {
 
   if (loading) {
     return (
-      <View className="flex-1 bg-gray-50" style={{ paddingTop: insets.top }}>
+      <View className="flex-1" style={{ backgroundColor: colors.background, paddingTop: insets.top }}>
         <View className="flex-1 justify-center items-center">
-          <ActivityIndicator size="large" color="#2563eb" />
+          <ActivityIndicator size="large" color={colors.primary} />
         </View>
       </View>
     );
   }
 
   return (
-    <View className="flex-1 bg-gray-50" style={{ paddingTop: insets.top }}>
+    <View className="flex-1" style={{ backgroundColor: colors.background, paddingTop: insets.top }}>
       <View className="flex-1">
         {/* Header */}
-        <View className="bg-white px-4 py-3 border-b border-gray-200 flex-row items-center">
+        <View className="px-4 py-3 border-b flex-row items-center" style={{ backgroundColor: colors.surface, borderBottomColor: colors.border }}>
           <TouchableOpacity onPress={() => router.back()} className="mr-4">
-            <Ionicons name="arrow-back" size={24} color="#1f2937" />
+            <Ionicons name="arrow-back" size={24} color={colors.text} />
           </TouchableOpacity>
-          <Text className="text-xl font-bold text-gray-900">
-            {isEdit ? 'Edit Question Set' : 'Create Question Set'}
+          <Text className="text-xl font-bold" style={{ color: colors.text }}>
+            {isEdit ? t('editQuestionSet') : t('createQuestionSet')}
           </Text>
         </View>
 
-        <ScrollView className="flex-1" contentContainerStyle={{ padding: 16 }}>
+        <ScrollView className="flex-1" contentContainerStyle={{ padding: 16 }} style={{ backgroundColor: colors.background }}>
           {/* Title Field */}
           <View className="mb-4">
-            <Text className="text-sm font-semibold text-gray-700 mb-2">
-              Title <Text className="text-red-500">*</Text>
+            <Text className="text-sm font-semibold mb-2" style={{ color: colors.text }}>
+              {t('title')} <Text style={{ color: colors.error }}>*</Text>
             </Text>
             <TextInput
-              placeholder="Enter question set title..."
+              placeholder={t('enterQuestionSetTitle')}
+              placeholderTextColor={colors.textTertiary}
               value={formData.title}
               onChangeText={(value) => handleInputChange('title', value)}
-              className="bg-white p-3 rounded-lg border border-gray-300 text-base"
+              className="p-3 rounded-lg border text-base"
+              style={{ backgroundColor: colors.card, borderColor: colors.border, color: colors.text }}
             />
           </View>
 
           {/* Description Field */}
           <View className="mb-4">
-            <Text className="text-sm font-semibold text-gray-700 mb-2">
-              Description
+            <Text className="text-sm font-semibold mb-2" style={{ color: colors.text }}>
+              {t('description')}
             </Text>
             <TextInput
-              placeholder="Enter description (optional)..."
+              placeholder={t('enterDescriptionOptional')}
+              placeholderTextColor={colors.textTertiary}
               value={formData.description}
               onChangeText={(value) => handleInputChange('description', value)}
               multiline
               numberOfLines={4}
-              className="bg-white p-3 rounded-lg border border-gray-300 text-base"
+              className="p-3 rounded-lg border text-base"
+              style={{ backgroundColor: colors.card, borderColor: colors.border, color: colors.text }}
               textAlignVertical="top"
             />
           </View>
@@ -157,15 +168,17 @@ export default function QuestionSetFormScreen() {
           <TouchableOpacity
             onPress={handleSubmit}
             disabled={saving}
-            className={`bg-blue-600 px-6 py-4 rounded-lg items-center mt-4 ${
-              saving ? 'opacity-50' : ''
-            }`}
+            className="px-6 py-4 rounded-lg items-center mt-4"
+            style={{
+              backgroundColor: colors.primary,
+              opacity: saving ? 0.5 : 1,
+            }}
           >
             {saving ? (
               <ActivityIndicator size="small" color="white" />
             ) : (
               <Text className="text-white font-semibold text-lg">
-                {isEdit ? 'Update Question Set' : 'Create Question Set'}
+                {isEdit ? t('updateQuestionSet') : t('createQuestionSet')}
               </Text>
             )}
           </TouchableOpacity>

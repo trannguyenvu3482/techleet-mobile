@@ -10,21 +10,30 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 import { useThemeStore, ThemeMode } from '@/store/theme-store';
+import { useLanguageStore, Language } from '@/store/language-store';
 import { getColors } from '@/theme/colors';
 
 export default function SettingsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation();
   const { mode, isDark, setMode } = useThemeStore();
+  const { language, setLanguage } = useLanguageStore();
   const colors = getColors(isDark);
 
   useEffect(() => {
     useThemeStore.getState().initialize();
+    useLanguageStore.getState().initialize();
   }, []);
 
   const handleThemeChange = async (newMode: ThemeMode) => {
     await setMode(newMode);
+  };
+
+  const handleLanguageChange = async (newLanguage: Language) => {
+    await setLanguage(newLanguage);
   };
 
   return (
@@ -42,7 +51,7 @@ export default function SettingsScreen() {
             <Ionicons name="arrow-back" size={24} color={colors.text} />
           </TouchableOpacity>
           <Text className="text-2xl font-bold" style={{ color: colors.text }}>
-            Settings
+            {t('title', { ns: 'settings' })}
           </Text>
         </View>
       </View>
@@ -57,7 +66,7 @@ export default function SettingsScreen() {
             className="text-lg font-bold mb-4"
             style={{ color: colors.text }}
           >
-            Appearance
+            {t('appearance', { ns: 'settings' })}
           </Text>
 
           {/* Theme Mode */}
@@ -66,7 +75,7 @@ export default function SettingsScreen() {
               className="text-sm font-semibold mb-3"
               style={{ color: colors.textSecondary }}
             >
-              Theme
+              {t('theme', { ns: 'settings' })}
             </Text>
 
             <TouchableOpacity
@@ -87,7 +96,7 @@ export default function SettingsScreen() {
                     fontWeight: mode === 'light' ? '600' : '400',
                   }}
                 >
-                  Light
+                  {t('light', { ns: 'settings' })}
                 </Text>
               </View>
               {mode === 'light' && (
@@ -113,7 +122,7 @@ export default function SettingsScreen() {
                     fontWeight: mode === 'dark' ? '600' : '400',
                   }}
                 >
-                  Dark
+                  {t('dark', { ns: 'settings' })}
                 </Text>
               </View>
               {mode === 'dark' && (
@@ -138,7 +147,7 @@ export default function SettingsScreen() {
                     fontWeight: mode === 'system' ? '600' : '400',
                   }}
                 >
-                  System
+                  {t('system', { ns: 'settings' })}
                 </Text>
               </View>
               {mode === 'system' && (
@@ -156,10 +165,74 @@ export default function SettingsScreen() {
               className="text-xs text-center"
               style={{ color: colors.textSecondary }}
             >
-              Current theme: {isDark ? 'Dark' : 'Light'}
-              {mode === 'system' && ' (System)'}
+              {t('currentTheme', { ns: 'settings' })}: {isDark ? t('dark', { ns: 'settings' }) : t('light', { ns: 'settings' })}
+              {mode === 'system' && ` (${t('system', { ns: 'settings' })})`}
             </Text>
           </View>
+        </View>
+
+        {/* Language Section */}
+        <View
+          className="rounded-lg p-4 mb-4 border"
+          style={{ backgroundColor: colors.card, borderColor: colors.border }}
+        >
+          <Text
+            className="text-lg font-bold mb-4"
+            style={{ color: colors.text }}
+          >
+            {t('language', { ns: 'settings' })}
+          </Text>
+
+          <TouchableOpacity
+            onPress={() => handleLanguageChange('en')}
+            className="flex-row items-center justify-between py-3 border-b"
+            style={{ borderBottomColor: colors.border }}
+          >
+            <View className="flex-row items-center">
+              <Ionicons
+                name="language-outline"
+                size={20}
+                color={language === 'en' ? colors.primary : colors.textSecondary}
+              />
+              <Text
+                className="ml-3 text-base"
+                style={{
+                  color: language === 'en' ? colors.primary : colors.text,
+                  fontWeight: language === 'en' ? '600' : '400',
+                }}
+              >
+                {t('english', { ns: 'settings' })}
+              </Text>
+            </View>
+            {language === 'en' && (
+              <Ionicons name="checkmark-circle" size={24} color={colors.primary} />
+            )}
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() => handleLanguageChange('vi')}
+            className="flex-row items-center justify-between py-3"
+          >
+            <View className="flex-row items-center">
+              <Ionicons
+                name="language-outline"
+                size={20}
+                color={language === 'vi' ? colors.primary : colors.textSecondary}
+              />
+              <Text
+                className="ml-3 text-base"
+                style={{
+                  color: language === 'vi' ? colors.primary : colors.text,
+                  fontWeight: language === 'vi' ? '600' : '400',
+                }}
+              >
+                {t('vietnamese', { ns: 'settings' })}
+              </Text>
+            </View>
+            {language === 'vi' && (
+              <Ionicons name="checkmark-circle" size={24} color={colors.primary} />
+            )}
+          </TouchableOpacity>
         </View>
 
         {/* Other Settings */}
@@ -171,7 +244,7 @@ export default function SettingsScreen() {
             className="text-lg font-bold mb-4"
             style={{ color: colors.text }}
           >
-            General
+            {t('general', { ns: 'settings' })}
           </Text>
 
           <TouchableOpacity
@@ -182,7 +255,7 @@ export default function SettingsScreen() {
             <View className="flex-row items-center">
               <Ionicons name="notifications-outline" size={20} color={colors.text} />
               <Text className="ml-3 text-base" style={{ color: colors.text }}>
-                Notifications
+                {t('notifications', { ns: 'settings' })}
               </Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
@@ -190,14 +263,14 @@ export default function SettingsScreen() {
 
           <TouchableOpacity
             onPress={() => {
-              Alert.alert('About', 'TechLeet Mobile App v1.0.0');
+              Alert.alert(t('about', { ns: 'settings' }), 'TechLeet Mobile App v1.0.0');
             }}
             className="flex-row items-center justify-between py-3"
           >
             <View className="flex-row items-center">
               <Ionicons name="information-circle-outline" size={20} color={colors.text} />
               <Text className="ml-3 text-base" style={{ color: colors.text }}>
-                About
+                {t('about', { ns: 'settings' })}
               </Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />

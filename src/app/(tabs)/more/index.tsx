@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { useProtectedRoute } from '@/hooks';
 import { useThemeStore } from '@/store/theme-store';
 import { getColors } from '@/theme/colors';
@@ -11,15 +12,17 @@ import { SafeAreaScrollView } from '@/components/ui';
 export default function More() {
   useProtectedRoute();
   const router = useRouter();
+  const { t } = useTranslation('more');
+  const { t: tCommon } = useTranslation('common');
   const { user, logout } = useAuthStore();
   const { isDark } = useThemeStore();
   const colors = getColors(isDark);
 
   const handleLogout = () => {
-    Alert.alert('Logout', 'Are you sure you want to logout?', [
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert(t('logout'), t('logoutConfirm'), [
+      { text: tCommon('cancel'), style: 'cancel' },
       {
-        text: 'Logout',
+        text: t('logout'),
         style: 'destructive',
         onPress: () => {
           logout();
@@ -32,7 +35,7 @@ export default function More() {
   return (
     <SafeAreaScrollView>
       <View className="p-6" style={{ backgroundColor: colors.background }}>
-        <Text className="text-2xl font-bold mb-6" style={{ color: colors.text }}>More</Text>
+        <Text className="text-2xl font-bold mb-6" style={{ color: colors.text }}>{t('title')}</Text>
 
         {user && (
           <View className="rounded-lg p-4 mb-6 shadow-sm" style={{ backgroundColor: colors.card }}>
@@ -48,7 +51,7 @@ export default function More() {
             style={{ borderBottomColor: colors.border }}
           >
             <Ionicons name="notifications-outline" size={24} color={colors.text} />
-            <Text className="ml-4 flex-1" style={{ color: colors.text }}>Notifications</Text>
+            <Text className="ml-4 flex-1" style={{ color: colors.text }}>{t('notifications')}</Text>
             <Ionicons name="chevron-forward-outline" size={20} color={colors.textSecondary} />
           </TouchableOpacity>
 
@@ -57,7 +60,7 @@ export default function More() {
             style={{ borderBottomColor: colors.border }}
           >
             <Ionicons name="document-text-outline" size={24} color={colors.text} />
-            <Text className="ml-4 flex-1" style={{ color: colors.text }}>Documents</Text>
+            <Text className="ml-4 flex-1" style={{ color: colors.text }}>{t('documents')}</Text>
             <Ionicons name="chevron-forward-outline" size={20} color={colors.textSecondary} />
           </TouchableOpacity>
 
@@ -66,7 +69,7 @@ export default function More() {
             style={{ borderBottomColor: colors.border }}
           >
             <Ionicons name="business-outline" size={24} color={colors.text} />
-            <Text className="ml-4 flex-1" style={{ color: colors.text }}>Company</Text>
+            <Text className="ml-4 flex-1" style={{ color: colors.text }}>{t('company')}</Text>
             <Ionicons name="chevron-forward-outline" size={20} color={colors.textSecondary} />
           </TouchableOpacity>
 
@@ -75,7 +78,7 @@ export default function More() {
             className="flex-row items-center p-4"
           >
             <Ionicons name="settings-outline" size={24} color={colors.text} />
-            <Text className="ml-4 flex-1" style={{ color: colors.text }}>Settings</Text>
+            <Text className="ml-4 flex-1" style={{ color: colors.text }}>{t('settings')}</Text>
             <Ionicons name="chevron-forward-outline" size={20} color={colors.textSecondary} />
           </TouchableOpacity>
         </View>
@@ -86,7 +89,7 @@ export default function More() {
           style={{ backgroundColor: colors.card }}
         >
           <Ionicons name="log-out-outline" size={24} color={colors.error} />
-          <Text className="ml-4 font-semibold" style={{ color: colors.error }}>Logout</Text>
+          <Text className="ml-4 font-semibold" style={{ color: colors.error }}>{t('logout')}</Text>
         </TouchableOpacity>
       </View>
     </SafeAreaScrollView>

@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Picker } from '@react-native-picker/picker';
 import { useProtectedRoute } from '@/hooks';
@@ -24,6 +25,8 @@ export default function ReportsScreen() {
   useProtectedRoute();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation('recruitment');
+  const { t: tCommon } = useTranslation('common');
   const { isDark } = useThemeStore();
   const colors = getColors(isDark);
   const [loading, setLoading] = useState(true);
@@ -54,7 +57,7 @@ export default function ReportsScreen() {
       setJobs(jobsRes.data || []);
     } catch (error) {
       console.error('Failed to load reports data:', error);
-      Alert.alert('Error', 'Failed to load reports data');
+      Alert.alert(tCommon('error'), t('failedToLoadReports'));
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -75,7 +78,7 @@ export default function ReportsScreen() {
       await exportService.exportReportsToCSV(summary, applicationTrends, hiringFunnel);
     } catch (error) {
       console.error('Error exporting reports:', error);
-      Alert.alert('Error', 'Failed to export reports');
+      Alert.alert(tCommon('error'), t('failedToExportReports'));
     }
   };
 
@@ -84,7 +87,7 @@ export default function ReportsScreen() {
       <View className="flex-1" style={{ backgroundColor: colors.background, paddingTop: insets.top }}>
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator size="large" color={colors.primary} />
-          <Text className="mt-4" style={{ color: colors.textSecondary }}>Loading reports...</Text>
+          <Text className="mt-4" style={{ color: colors.textSecondary }}>{t('loadingReports')}</Text>
         </View>
       </View>
     );
@@ -98,7 +101,7 @@ export default function ReportsScreen() {
           <TouchableOpacity onPress={() => router.back()}>
             <Ionicons name="arrow-back" size={24} color={colors.text} />
           </TouchableOpacity>
-          <Text className="text-xl font-bold flex-1 ml-3" style={{ color: colors.text }}>Reports</Text>
+          <Text className="text-xl font-bold flex-1 ml-3" style={{ color: colors.text }}>{t('reports')}</Text>
           <TouchableOpacity onPress={handleExport} className="p-2">
             <Ionicons name="download-outline" size={24} color={colors.primary} />
           </TouchableOpacity>
@@ -108,31 +111,31 @@ export default function ReportsScreen() {
         <View className="mt-3 space-y-3">
           <View className="flex-row items-center space-x-3">
             <View className="flex-1">
-              <Text className="text-sm font-semibold mb-1" style={{ color: colors.text }}>Period</Text>
+              <Text className="text-sm font-semibold mb-1" style={{ color: colors.text }}>{t('period')}</Text>
               <View className="border rounded-lg" style={{ borderColor: colors.border }}>
                 <Picker
                   selectedValue={period}
                   onValueChange={(value) => setPeriod(value)}
                   style={{ height: 40, color: colors.text }}
                 >
-                  <Picker.Item label="Last 7 days" value="7d" />
-                  <Picker.Item label="Last 30 days" value="30d" />
-                  <Picker.Item label="Last 90 days" value="90d" />
-                  <Picker.Item label="Last year" value="1y" />
-                  <Picker.Item label="All time" value="all" />
+                  <Picker.Item label={t('last7Days')} value="7d" />
+                  <Picker.Item label={t('last30Days')} value="30d" />
+                  <Picker.Item label={t('last90Days')} value="90d" />
+                  <Picker.Item label={t('lastYear')} value="1y" />
+                  <Picker.Item label={t('allTime')} value="all" />
                 </Picker>
               </View>
             </View>
 
             <View className="flex-1">
-              <Text className="text-sm font-semibold mb-1" style={{ color: colors.text }}>Job</Text>
+              <Text className="text-sm font-semibold mb-1" style={{ color: colors.text }}>{t('job')}</Text>
               <View className="border rounded-lg" style={{ borderColor: colors.border }}>
                 <Picker
                   selectedValue={selectedJobId || 0}
                   onValueChange={(value) => setSelectedJobId(value === 0 ? undefined : value)}
                   style={{ height: 40, color: colors.text }}
                 >
-                  <Picker.Item label="All Jobs" value={0} />
+                  <Picker.Item label={t('allJobs')} value={0} />
                   {jobs.map((job) => (
                     <Picker.Item
                       key={job.jobPostingId}
@@ -156,36 +159,36 @@ export default function ReportsScreen() {
           {/* Summary Stats */}
           {summary && (
             <View className="mb-6">
-              <Text className="text-lg font-semibold mb-4" style={{ color: colors.text }}>Summary</Text>
+              <Text className="text-lg font-semibold mb-4" style={{ color: colors.text }}>{t('summary')}</Text>
               <View className="rounded-lg p-4 border" style={{ backgroundColor: colors.card, borderColor: colors.border }}>
                 <View className="flex-row flex-wrap -mx-2">
                   <View className="w-1/2 px-2 mb-3">
-                    <Text className="text-xs mb-1" style={{ color: colors.textSecondary }}>Total Jobs</Text>
+                    <Text className="text-xs mb-1" style={{ color: colors.textSecondary }}>{t('totalJobs')}</Text>
                     <Text className="text-2xl font-bold" style={{ color: colors.text }}>{summary.totalJobs}</Text>
                     <Text className="text-xs mt-1" style={{ color: colors.textSecondary }}>
-                      {summary.recentJobs} in period
+                      {summary.recentJobs} {t('inPeriod')}
                     </Text>
                   </View>
                   <View className="w-1/2 px-2 mb-3">
-                    <Text className="text-xs mb-1" style={{ color: colors.textSecondary }}>Total Applications</Text>
+                    <Text className="text-xs mb-1" style={{ color: colors.textSecondary }}>{t('totalApplications')}</Text>
                     <Text className="text-2xl font-bold" style={{ color: colors.text }}>
                       {summary.totalApplications}
                     </Text>
                     <Text className="text-xs mt-1" style={{ color: colors.textSecondary }}>
-                      {summary.recentApplications} in period
+                      {summary.recentApplications} {t('inPeriod')}
                     </Text>
                   </View>
                   <View className="w-1/2 px-2 mb-3">
-                    <Text className="text-xs mb-1" style={{ color: colors.textSecondary }}>Total Candidates</Text>
+                    <Text className="text-xs mb-1" style={{ color: colors.textSecondary }}>{t('totalCandidates')}</Text>
                     <Text className="text-2xl font-bold" style={{ color: colors.text }}>
                       {summary.totalCandidates}
                     </Text>
                     <Text className="text-xs mt-1" style={{ color: colors.textSecondary }}>
-                      {summary.recentCandidates} in period
+                      {summary.recentCandidates} {t('inPeriod')}
                     </Text>
                   </View>
                   <View className="w-1/2 px-2 mb-3">
-                    <Text className="text-xs mb-1" style={{ color: colors.textSecondary }}>Total Interviews</Text>
+                    <Text className="text-xs mb-1" style={{ color: colors.textSecondary }}>{t('totalInterviews')}</Text>
                     <Text className="text-2xl font-bold" style={{ color: colors.text }}>
                       {summary.totalInterviews}
                     </Text>
@@ -198,7 +201,7 @@ export default function ReportsScreen() {
           {/* Hiring Funnel */}
           {hiringFunnel.length > 0 && (
             <View className="mb-6">
-              <FunnelChart title="Hiring Funnel" data={hiringFunnel} />
+              <FunnelChart title={t('hiringFunnel')} data={hiringFunnel} />
             </View>
           )}
 
@@ -206,7 +209,7 @@ export default function ReportsScreen() {
           {applicationTrends.length > 0 && (
             <View className="mb-6">
               <LineChart
-                title={`Application Trends (${period})`}
+                title={`${t('applicationTrends')} (${period})`}
                 data={applicationTrends.map((item) => ({
                   x: new Date(item.date).toLocaleDateString('en-US', {
                     month: 'short',
@@ -223,7 +226,7 @@ export default function ReportsScreen() {
           {summary && summary.applicationStatusBreakdown.length > 0 && (
             <View className="mb-6">
               <PieChart
-                title="Application Status Distribution"
+                title={t('applicationStatusDistribution')}
                 data={summary.applicationStatusBreakdown.map((item) => ({
                   x: item.status.charAt(0).toUpperCase() + item.status.slice(1),
                   y: item.count,
@@ -236,7 +239,7 @@ export default function ReportsScreen() {
           {summary && summary.jobStatusBreakdown.length > 0 && (
             <View className="mb-6">
               <PieChart
-                title="Job Status Distribution"
+                title={t('jobStatusDistribution')}
                 data={summary.jobStatusBreakdown.map((item) => ({
                   x: item.status.charAt(0).toUpperCase() + item.status.slice(1),
                   y: item.count,
@@ -249,7 +252,7 @@ export default function ReportsScreen() {
           {departmentStats.length > 0 && (
             <View className="mb-6">
               <BarChart
-                title="Top Departments by Job Count"
+                title={t('topDepartmentsByJobCount')}
                 data={departmentStats.map((item) => ({
                   x: item.departmentName,
                   y: item.jobCount,
@@ -263,7 +266,7 @@ export default function ReportsScreen() {
           {departmentStats.length > 0 && (
             <View className="mb-6">
               <BarChart
-                title="Top Departments by Application Count"
+                title={t('topDepartmentsByApplicationCount')}
                 data={departmentStats.map((item) => ({
                   x: item.departmentName,
                   y: item.applicationCount,
@@ -277,7 +280,7 @@ export default function ReportsScreen() {
           {departmentStats.length > 0 && (
             <View className="mb-6">
               <BarChart
-                title="Top Departments by Interview Count"
+                title={t('topDepartmentsByInterviewCount')}
                 data={departmentStats.map((item) => ({
                   x: item.departmentName,
                   y: item.interviewCount,

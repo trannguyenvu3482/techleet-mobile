@@ -2,6 +2,7 @@ import React, { useState, useCallback } from 'react';
 import { View, Text, TextInput, TouchableOpacity, FlatList, RefreshControl, ActivityIndicator, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { useProtectedRoute } from '@/hooks';
 import { JobCard, SelectionToolbar, ProgressModal, DateRangePicker, FilterPresetsModal } from '@/components/ui';
 import { BulkOperations, BulkOperationProgress } from '@/utils/bulk-operations';
@@ -18,6 +19,8 @@ export default function RecruitmentScreen() {
   useProtectedRoute();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation('recruitment');
+  const { t: tCommon } = useTranslation('common');
   const { isDark } = useThemeStore();
   const colors = getColors(isDark);
   const [jobs, setJobs] = useState<JobPostingDto[]>([]);
@@ -90,7 +93,7 @@ export default function RecruitmentScreen() {
       setTotal(response.total || response.data.length);
     } catch (err) {
       console.error('Error fetching jobs:', err);
-      setError('Failed to load jobs');
+      setError(t('failedToLoadJobs'));
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -436,8 +439,8 @@ export default function RecruitmentScreen() {
   const renderEmpty = () => (
     <View className="items-center justify-center py-12">
       <Ionicons name="briefcase-outline" size={64} color={colors.textTertiary} />
-      <Text className="text-lg font-semibold mt-4" style={{ color: colors.textSecondary }}>No jobs found</Text>
-      <Text className="mt-2" style={{ color: colors.textTertiary }}>Create a new job posting</Text>
+      <Text className="text-lg font-semibold mt-4" style={{ color: colors.textSecondary }}>{t('noJobs')}</Text>
+      <Text className="mt-2" style={{ color: colors.textTertiary }}>{t('addJob')}</Text>
     </View>
   );
 
@@ -446,7 +449,7 @@ export default function RecruitmentScreen() {
       <View className="flex-1" style={{ backgroundColor: colors.background, paddingTop: insets.top }}>
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator size="large" color={colors.primary} />
-          <Text className="mt-4" style={{ color: colors.textSecondary }}>Loading jobs...</Text>
+          <Text className="mt-4" style={{ color: colors.textSecondary }}>{t('loadingJobs')}</Text>
         </View>
       </View>
     );
@@ -457,7 +460,7 @@ export default function RecruitmentScreen() {
       {/* Header */}
       <View className="px-4 pt-4 pb-2 border-b" style={{ backgroundColor: colors.surface, borderBottomColor: colors.border }}>
         <View className="flex-row items-center mb-3">
-          <Text className="text-2xl font-bold flex-1" style={{ color: colors.text }}>Recruitment</Text>
+          <Text className="text-2xl font-bold flex-1" style={{ color: colors.text }}>{t('title')}</Text>
           <View className="flex-row gap-2">
             {!selectionMode ? (
               <>
@@ -480,7 +483,7 @@ export default function RecruitmentScreen() {
                   className="px-4 py-2 rounded-lg"
                   style={{ backgroundColor: colors.primary }}
                 >
-                  <Text className="text-white font-semibold">Add Job</Text>
+                  <Text className="text-white font-semibold">{t('addJob')}</Text>
                 </TouchableOpacity>
               </>
             ) : null}
@@ -495,7 +498,7 @@ export default function RecruitmentScreen() {
           >
             <View className="flex-row items-center justify-center">
               <Ionicons name="document-text-outline" size={18} color="#f97316" />
-              <Text className="text-sm font-semibold text-orange-600 ml-2">Applications</Text>
+              <Text className="text-sm font-semibold text-orange-600 ml-2">{t('applications')}</Text>
             </View>
           </TouchableOpacity>
           
@@ -505,7 +508,7 @@ export default function RecruitmentScreen() {
           >
             <View className="flex-row items-center justify-center">
               <Ionicons name="calendar-outline" size={18} color="#2563eb" />
-              <Text className="text-sm font-semibold text-blue-600 ml-2">Interviews</Text>
+              <Text className="text-sm font-semibold text-blue-600 ml-2">{t('interviews')}</Text>
             </View>
           </TouchableOpacity>
           
@@ -515,7 +518,7 @@ export default function RecruitmentScreen() {
           >
             <View className="flex-row items-center justify-center">
               <Ionicons name="person-add-outline" size={18} color="#8b5cf6" />
-              <Text className="text-sm font-semibold text-purple-600 ml-2">Requests</Text>
+              <Text className="text-sm font-semibold text-purple-600 ml-2">{t('interviews')}</Text>
             </View>
           </TouchableOpacity>
           
@@ -525,7 +528,7 @@ export default function RecruitmentScreen() {
           >
             <View className="flex-row items-center justify-center">
               <Ionicons name="people-outline" size={18} color="#10b981" />
-              <Text className="text-sm font-semibold text-green-600 ml-2">Candidates</Text>
+              <Text className="text-sm font-semibold text-green-600 ml-2">{t('candidates')}</Text>
             </View>
           </TouchableOpacity>
           
@@ -535,7 +538,7 @@ export default function RecruitmentScreen() {
           >
             <View className="flex-row items-center justify-center">
               <Ionicons name="help-circle-outline" size={18} color="#6366f1" />
-              <Text className="text-sm font-semibold text-indigo-600 ml-2">Questions</Text>
+              <Text className="text-sm font-semibold text-indigo-600 ml-2">{t('questions')}</Text>
             </View>
           </TouchableOpacity>
           
@@ -545,7 +548,7 @@ export default function RecruitmentScreen() {
           >
             <View className="flex-row items-center justify-center">
               <Ionicons name="folder-outline" size={18} color="#ec4899" />
-              <Text className="text-sm font-semibold text-pink-600 ml-2">Question Sets</Text>
+              <Text className="text-sm font-semibold text-pink-600 ml-2">{t('questionSets')}</Text>
             </View>
           </TouchableOpacity>
           
@@ -555,7 +558,7 @@ export default function RecruitmentScreen() {
           >
             <View className="flex-row items-center justify-center">
               <Ionicons name="analytics-outline" size={18} color="#f59e0b" />
-              <Text className="text-sm font-semibold text-amber-600 ml-2">Reports</Text>
+              <Text className="text-sm font-semibold text-amber-600 ml-2">{t('reports')}</Text>
             </View>
           </TouchableOpacity>
         </View>
@@ -570,7 +573,7 @@ export default function RecruitmentScreen() {
           />
           <TextInput
             className="rounded-lg pl-10 pr-4 py-3"
-            placeholder="Search jobs..."
+            placeholder={t('searchJobs')}
             placeholderTextColor={colors.textTertiary}
             value={searchTerm}
             onChangeText={handleSearch}
@@ -587,10 +590,10 @@ export default function RecruitmentScreen() {
           >
             <View className="flex-row items-center">
               <Ionicons name="filter-outline" size={18} color={colors.textSecondary} />
-              <Text className="text-sm font-semibold ml-2" style={{ color: colors.text }}>Filters & Sort</Text>
+              <Text className="text-sm font-semibold ml-2" style={{ color: colors.text }}>{t('filters')}</Text>
               {(statusFilter !== 'all' || employmentTypeFilter !== 'all' || experienceLevelFilter !== 'all' || sortBy !== 'createdAt' || dateRange.startDate || dateRange.endDate) && (
                 <View className="ml-2 rounded-full px-2 py-0.5" style={{ backgroundColor: colors.primary }}>
-                  <Text className="text-xs text-white font-semibold">Active</Text>
+                  <Text className="text-xs text-white font-semibold">{t('filters.active')}</Text>
                 </View>
               )}
             </View>
@@ -631,7 +634,7 @@ export default function RecruitmentScreen() {
 
             {/* Status Filter */}
             <View className="mb-3">
-              <Text className="text-xs font-semibold mb-2" style={{ color: colors.text }}>Status:</Text>
+              <Text className="text-xs font-semibold mb-2" style={{ color: colors.text }}>{tCommon('filter')}:</Text>
               <View className="flex-row gap-2 flex-wrap">
                 {['all', 'draft', 'published', 'closed'].map((filter) => (
                   <TouchableOpacity
@@ -648,7 +651,7 @@ export default function RecruitmentScreen() {
                         color: statusFilter === filter ? 'white' : colors.textSecondary,
                       }}
                     >
-                      {filter.charAt(0).toUpperCase() + filter.slice(1)}
+                      {filter === 'all' ? t('filters.all') : t(`status.${filter}`)}
                     </Text>
                   </TouchableOpacity>
                 ))}
@@ -657,7 +660,7 @@ export default function RecruitmentScreen() {
 
             {/* Employment Type Filter */}
             <View className="mb-3">
-              <Text className="text-xs font-semibold mb-2" style={{ color: colors.text }}>Employment Type:</Text>
+              <Text className="text-xs font-semibold mb-2" style={{ color: colors.text }}>{tCommon('filter')}:</Text>
               <View className="flex-row gap-2 flex-wrap">
                 {['all', 'full-time', 'part-time', 'contract', 'internship'].map((filter) => (
                   <TouchableOpacity
@@ -674,7 +677,7 @@ export default function RecruitmentScreen() {
                         color: employmentTypeFilter === filter ? 'white' : colors.textSecondary,
                       }}
                     >
-                      {filter === 'all' ? 'All' : filter.charAt(0).toUpperCase() + filter.slice(1).replace('-', ' ')}
+                      {filter === 'all' ? t('filters.all') : filter.charAt(0).toUpperCase() + filter.slice(1).replace('-', ' ')}
                     </Text>
                   </TouchableOpacity>
                 ))}
@@ -683,7 +686,7 @@ export default function RecruitmentScreen() {
 
             {/* Experience Level Filter */}
             <View className="mb-3">
-              <Text className="text-xs font-semibold mb-2" style={{ color: colors.text }}>Experience Level:</Text>
+              <Text className="text-xs font-semibold mb-2" style={{ color: colors.text }}>{tCommon('filter')}:</Text>
               <View className="flex-row gap-2 flex-wrap">
                 {['all', 'entry', 'mid', 'senior', 'executive'].map((filter) => (
                   <TouchableOpacity
@@ -700,7 +703,7 @@ export default function RecruitmentScreen() {
                         color: experienceLevelFilter === filter ? 'white' : colors.textSecondary,
                       }}
                     >
-                      {filter === 'all' ? 'All' : filter.charAt(0).toUpperCase() + filter.slice(1)}
+                      {filter === 'all' ? t('filters.all') : filter.charAt(0).toUpperCase() + filter.slice(1)}
                     </Text>
                   </TouchableOpacity>
                 ))}
@@ -709,11 +712,11 @@ export default function RecruitmentScreen() {
 
             {/* Sort Options */}
             <View>
-              <Text className="text-xs font-semibold mb-2" style={{ color: colors.text }}>Sort By:</Text>
+              <Text className="text-xs font-semibold mb-2" style={{ color: colors.text }}>{t('sortBy')}</Text>
               <View className="flex-row gap-2 flex-wrap">
                 {[
-                  { value: 'createdAt', label: 'Date' },
-                  { value: 'title', label: 'Title' },
+                  { value: 'createdAt', label: t('sortByOptions.createdAt') },
+                  { value: 'title', label: t('sortByOptions.title') },
                 ].map((option) => (
                   <TouchableOpacity
                     key={option.value}
@@ -806,7 +809,7 @@ export default function RecruitmentScreen() {
                 {loading ? (
                   <ActivityIndicator size="small" color="white" />
                 ) : (
-                  <Text className="text-white font-semibold">Load More</Text>
+                  <Text className="text-white font-semibold">{t('loadMore')}</Text>
                 )}
               </TouchableOpacity>
             </View>

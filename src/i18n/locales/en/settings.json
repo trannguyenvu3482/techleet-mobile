@@ -1,0 +1,17 @@
+{
+  "title": "Settings",
+  "appearance": "Appearance",
+  "theme": "Theme",
+  "light": "Light",
+  "dark": "Dark",
+  "system": "System",
+  "currentTheme": "Current theme",
+  "general": "General",
+  "notifications": "Notifications",
+  "about": "About",
+  "language": "Language",
+  "selectLanguage": "Select Language",
+  "english": "English",
+  "vietnamese": "Vietnamese"
+}
+

@@ -11,12 +11,19 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { recruitmentAPI, QuestionSet } from '@/services/api/recruitment';
+import { useThemeStore } from '@/store/theme-store';
+import { getColors } from '@/theme/colors';
 
 export default function QuestionSetsListScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation('recruitment');
+  const { t: tCommon } = useTranslation('common');
+  const { isDark } = useThemeStore();
+  const colors = getColors(isDark);
   const [questionSets, setQuestionSets] = useState<QuestionSet[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -50,7 +57,7 @@ export default function QuestionSetsListScreen() {
       setTotal(response.total);
     } catch (error) {
       console.error('Error fetching question sets:', error);
-      Alert.alert('Error', 'Failed to load question sets');
+      Alert.alert(tCommon('error'), t('failedToLoadQuestionSets'));
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -63,7 +70,7 @@ export default function QuestionSetsListScreen() {
     } else {
       fetchQuestionSets(true);
     }
-  }, [page, searchTerm]);
+  }, [page, searchTerm, fetchQuestionSets]);
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -119,22 +126,23 @@ export default function QuestionSetsListScreen() {
     return (
       <TouchableOpacity
         onPress={() => handleQuestionSetPress(item)}
-        className="bg-white p-4 mb-3 rounded-lg border border-gray-200"
+        className="p-4 mb-3 rounded-lg border"
+        style={{ backgroundColor: colors.card, borderColor: colors.border }}
       >
         <View className="flex-row items-start justify-between mb-2">
           <View className="flex-1 mr-2">
-            <Text className="text-lg font-semibold text-gray-900 mb-1">
+            <Text className="text-lg font-semibold mb-1" style={{ color: colors.text }}>
               {item.title}
             </Text>
             {item.description && (
-              <Text className="text-sm text-gray-600 mb-2" numberOfLines={2}>
+              <Text className="text-sm mb-2" style={{ color: colors.textSecondary }} numberOfLines={2}>
                 {item.description}
               </Text>
             )}
             <View className="flex-row items-center mt-2">
-              <View className="bg-blue-50 px-2 py-1 rounded border border-blue-200">
-                <Text className="text-xs font-medium text-blue-700">
-                  {questionCount} question{questionCount !== 1 ? 's' : ''}
+              <View className="px-2 py-1 rounded border" style={{ backgroundColor: colors.primaryLight, borderColor: colors.primary }}>
+                <Text className="text-xs font-medium" style={{ color: colors.primary }}>
+                  {questionCount} {questionCount !== 1 ? t('questions') : t('question')}
                 </Text>
               </View>
             </View>
@@ -144,13 +152,13 @@ export default function QuestionSetsListScreen() {
               onPress={() => handleEditQuestionSet(item)}
               className="p-2 mr-1"
             >
-              <Ionicons name="pencil-outline" size={20} color="#2563eb" />
+              <Ionicons name="pencil-outline" size={20} color={colors.primary} />
             </TouchableOpacity>
             <TouchableOpacity
               onPress={() => handleDeleteQuestionSet(item)}
               className="p-2"
             >
-              <Ionicons name="trash-outline" size={20} color="#ef4444" />
+              <Ionicons name="trash-outline" size={20} color={colors.error} />
             </TouchableOpacity>
           </View>
         </View>
@@ -159,22 +167,28 @@ export default function QuestionSetsListScreen() {
   };
 
   return (
-    <View className="flex-1 bg-gray-50" style={{ paddingTop: insets.top }}>
+    <View className="flex-1" style={{ backgroundColor: colors.background, paddingTop: insets.top }}>
       <View className="flex-1 px-4 pt-4">
         {/* Header */}
         <View className="flex-row items-center justify-between mb-4">
-          <View>
-            <Text className="text-2xl font-bold text-gray-900">Question Sets</Text>
-            <Text className="text-sm text-gray-500 mt-1">
-              {total} set{total !== 1 ? 's' : ''}
-            </Text>
+          <View className="flex-row items-center flex-1">
+            <TouchableOpacity onPress={() => router.back()} className="mr-3">
+              <Ionicons name="arrow-back" size={24} color={colors.text} />
+            </TouchableOpacity>
+            <View>
+              <Text className="text-2xl font-bold" style={{ color: colors.text }}>{t('questionSets')}</Text>
+              <Text className="text-sm mt-1" style={{ color: colors.textSecondary }}>
+                {total} {total !== 1 ? t('sets') : t('set')}
+              </Text>
+            </View>
           </View>
           <TouchableOpacity
             onPress={handleCreateQuestionSet}
-            className="bg-blue-600 px-4 py-2 rounded-lg flex-row items-center"
+            className="px-4 py-2 rounded-lg flex-row items-center"
+            style={{ backgroundColor: colors.primary }}
           >
             <Ionicons name="add" size={20} color="white" />
-            <Text className="text-white font-semibold ml-2">New</Text>
+            <Text className="text-white font-semibold ml-2">{t('new')}</Text>
           </TouchableOpacity>
         </View>
 
@@ -184,17 +198,19 @@ export default function QuestionSetsListScreen() {
             <Ionicons
               name="search-outline"
               size={20}
-              color="#9ca3af"
+              color={colors.textSecondary}
               style={{ position: 'absolute', left: 12, top: 12, zIndex: 1 }}
             />
             <TextInput
-              placeholder="Search question sets..."
+              placeholder={t('searchQuestionSets')}
+              placeholderTextColor={colors.textTertiary}
               value={searchTerm}
               onChangeText={(text) => {
                 setSearchTerm(text);
                 setPage(0);
               }}
-              className="bg-white pl-10 pr-4 py-3 rounded-lg border border-gray-200"
+              className="pl-10 pr-4 py-3 rounded-lg border"
+              style={{ backgroundColor: colors.card, borderColor: colors.border, color: colors.text }}
             />
           </View>
         </View>
@@ -202,19 +218,20 @@ export default function QuestionSetsListScreen() {
         {/* Question Sets List */}
         {loading && !refreshing ? (
           <View className="flex-1 justify-center items-center">
-            <ActivityIndicator size="large" color="#2563eb" />
+            <ActivityIndicator size="large" color={colors.primary} />
           </View>
         ) : questionSets.length === 0 ? (
           <View className="flex-1 justify-center items-center">
-            <Ionicons name="folder-outline" size={64} color="#9ca3af" />
-            <Text className="text-gray-500 text-center mt-4">
-              No question sets found
+            <Ionicons name="folder-outline" size={64} color={colors.textTertiary} />
+            <Text className="text-center mt-4" style={{ color: colors.textSecondary }}>
+              {t('noQuestionSets')}
             </Text>
             <TouchableOpacity
               onPress={handleCreateQuestionSet}
-              className="mt-4 bg-blue-600 px-6 py-3 rounded-lg"
+              className="mt-4 px-6 py-3 rounded-lg"
+              style={{ backgroundColor: colors.primary }}
             >
-              <Text className="text-white font-semibold">Create First Question Set</Text>
+              <Text className="text-white font-semibold">{tCommon('add')} {t('questionSet')}</Text>
             </TouchableOpacity>
           </View>
         ) : (
@@ -226,20 +243,23 @@ export default function QuestionSetsListScreen() {
               <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
             }
             contentContainerStyle={{ paddingBottom: 20 }}
+            style={{ backgroundColor: colors.background }}
             ListFooterComponent={
               questionSets.length < total ? (
                 <View className="py-4">
                   <TouchableOpacity
                     onPress={handleLoadMore}
                     disabled={loading}
-                    className={`bg-blue-600 px-4 py-2 rounded-lg items-center ${
-                      loading ? 'opacity-50' : ''
-                    }`}
+                    className="px-4 py-2 rounded-lg items-center"
+                    style={{
+                      backgroundColor: colors.primary,
+                      opacity: loading ? 0.5 : 1,
+                    }}
                   >
                     {loading ? (
                       <ActivityIndicator size="small" color="white" />
                     ) : (
-                      <Text className="text-white font-semibold">Load More</Text>
+                      <Text className="text-white font-semibold">{t('loadMore')}</Text>
                     )}
                   </TouchableOpacity>
                 </View>

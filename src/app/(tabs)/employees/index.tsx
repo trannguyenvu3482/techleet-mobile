@@ -1,16 +1,20 @@
 import React, { useState, useCallback } from 'react';
 import { View, Text, TextInput, TouchableOpacity, FlatList, RefreshControl, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { useProtectedRoute } from '@/hooks';
 import { SafeAreaScrollView, EmployeeCard } from '@/components/ui';
 import { EmployeeResponseDto } from '@/types/employee';
 import { employeeAPI } from '@/services/api';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useThemeStore } from '@/store/theme-store';
 import { getColors } from '@/theme/colors';
 
 export default function EmployeesScreen() {
   useProtectedRoute();
+  const insets = useSafeAreaInsets();
+  const { t } = useTranslation('employees');
+  const { t: tCommon } = useTranslation('common');
   const { isDark } = useThemeStore();
   const colors = getColors(isDark);
   const [employees, setEmployees] = useState<EmployeeResponseDto[]>([]);
@@ -26,7 +30,7 @@ export default function EmployeesScreen() {
       setEmployees(response.data);
     } catch (err) {
       console.error('Error fetching employees:', err);
-      setError('Failed to load employees');
+      setError(tCommon('failedToLoad'));
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -97,8 +101,8 @@ export default function EmployeesScreen() {
   const renderEmpty = () => (
     <View className="items-center justify-center py-12">
       <Ionicons name="people-outline" size={64} color={colors.textTertiary} />
-      <Text className="text-lg font-semibold mt-4" style={{ color: colors.textSecondary }}>No employees found</Text>
-      <Text className="mt-2" style={{ color: colors.textTertiary }}>Add employees to get started</Text>
+      <Text className="text-lg font-semibold mt-4" style={{ color: colors.textSecondary }}>{t('noEmployees')}</Text>
+      <Text className="mt-2" style={{ color: colors.textTertiary }}>{t('addEmployees')}</Text>
     </View>
   );
 
@@ -108,19 +112,19 @@ export default function EmployeesScreen() {
         {renderHeader()}
         <View className="flex-1 items-center justify-center min-h-[400px]">
           <ActivityIndicator size="large" color={colors.primary} />
-          <Text className="mt-4" style={{ color: colors.textSecondary }}>Loading employees...</Text>
+          <Text className="mt-4" style={{ color: colors.textSecondary }}>{tCommon('loadingData')}</Text>
         </View>
       </SafeAreaScrollView>
     );
   }
 
   return (
-    <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }}>
+    <View className="flex-1" style={{ backgroundColor: colors.background, paddingTop: insets.top }}>
       <View className="px-4 pt-4 pb-2 border-b" style={{ backgroundColor: colors.surface, borderBottomColor: colors.border }}>
         <View className="flex-row items-center mb-3">
-          <Text className="text-2xl font-bold flex-1" style={{ color: colors.text }}>Employees</Text>
+          <Text className="text-2xl font-bold flex-1" style={{ color: colors.text }}>{t('title')}</Text>
           <TouchableOpacity className="px-4 py-2 rounded-lg" style={{ backgroundColor: colors.primary }}>
-            <Text className="text-white font-semibold">Add</Text>
+            <Text className="text-white font-semibold">{tCommon('add')}</Text>
           </TouchableOpacity>
         </View>
 
@@ -134,7 +138,7 @@ export default function EmployeesScreen() {
           />
           <TextInput
             className="rounded-lg pl-10 pr-4 py-3"
-            placeholder="Search employees..."
+            placeholder={t('search')}
             placeholderTextColor={colors.textTertiary}
             value={searchTerm}
             onChangeText={handleSearch}
@@ -157,7 +161,7 @@ export default function EmployeesScreen() {
         ListEmptyComponent={renderEmpty}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       />
-    </SafeAreaView>
+    </View>
   );
 }
 

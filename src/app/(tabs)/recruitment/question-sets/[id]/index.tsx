@@ -12,13 +12,20 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { recruitmentAPI, QuestionSet, Question, QuestionSetItem } from '@/services/api/recruitment';
+import { useThemeStore } from '@/store/theme-store';
+import { getColors } from '@/theme/colors';
 
 export default function QuestionSetDetailScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ id: string }>();
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation('recruitment');
+  const { t: tCommon } = useTranslation('common');
+  const { isDark } = useThemeStore();
+  const colors = getColors(isDark);
   const [questionSet, setQuestionSet] = useState<QuestionSet | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -36,7 +43,7 @@ export default function QuestionSetDetailScreen() {
 
   const fetchQuestionSet = useCallback(async () => {
     if (!isValidId || !questionSetId) {
-      Alert.alert('Error', 'Invalid question set ID');
+      Alert.alert(tCommon('error'), t('invalidQuestionSetId'));
       router.back();
       return;
     }
@@ -48,20 +55,20 @@ export default function QuestionSetDetailScreen() {
       setQuestionSet(foundSet);
     } catch (error) {
       console.error('Error fetching question set:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Failed to load question set';
-      Alert.alert('Error', errorMessage);
+      const errorMessage = error instanceof Error ? error.message : t('failedToLoadQuestionSet');
+      Alert.alert(tCommon('error'), errorMessage);
       router.back();
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [questionSetId, isValidId, router]);
+  }, [questionSetId, isValidId, router, t, tCommon]);
 
   useEffect(() => {
     if (isValidId) {
       fetchQuestionSet();
     } else if (params.id && params.id !== 'index') {
-      Alert.alert('Error', 'Invalid question set ID');
+      Alert.alert(tCommon('error'), t('invalidQuestionSetId'));
       router.back();
     }
   }, [isValidId, params.id, fetchQuestionSet, router]);
@@ -84,7 +91,7 @@ export default function QuestionSetDetailScreen() {
       setAvailableQuestions(filtered);
     } catch (error) {
       console.error('Error fetching questions:', error);
-      Alert.alert('Error', 'Failed to load available questions');
+      Alert.alert(tCommon('error'), t('failedToLoadAvailableQuestions'));
     } finally {
       setLoadingQuestions(false);
     }
@@ -107,7 +114,7 @@ export default function QuestionSetDetailScreen() {
 
   const handleAddQuestions = async () => {
     if (!questionSet || selectedQuestionIds.length === 0) {
-      Alert.alert('Error', 'Please select at least one question');
+      Alert.alert(tCommon('error'), t('pleaseSelectAtLeastOneQuestion'));
       return;
     }
 
@@ -115,33 +122,33 @@ export default function QuestionSetDetailScreen() {
       for (const questionId of selectedQuestionIds) {
         await recruitmentAPI.addQuestionToSet(questionSet.setId, questionId);
       }
-      Alert.alert('Success', `Added ${selectedQuestionIds.length} question(s) to set`);
+      Alert.alert(tCommon('success'), t('addedQuestionsToSet', { count: selectedQuestionIds.length }));
       setShowAddModal(false);
       setSelectedQuestionIds([]);
       fetchQuestionSet();
     } catch (error) {
       console.error('Error adding questions:', error);
-      Alert.alert('Error', 'Failed to add questions to set');
+      Alert.alert(tCommon('error'), t('failedToAddQuestionsToSet'));
     }
   };
 
   const handleRemoveQuestion = (item: QuestionSetItem) => {
     Alert.alert(
-      'Remove Question',
-      'Are you sure you want to remove this question from the set?',
+      t('removeQuestion'),
+      t('removeQuestionConfirm'),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: tCommon('cancel'), style: 'cancel' },
         {
-          text: 'Remove',
+          text: tCommon('remove'),
           style: 'destructive',
           onPress: async () => {
             try {
               await recruitmentAPI.removeQuestionFromSet(item.setItemId);
-              Alert.alert('Success', 'Question removed from set');
+              Alert.alert(tCommon('success'), t('questionRemovedFromSet'));
               fetchQuestionSet();
             } catch (error) {
               console.error('Error removing question:', error);
-              Alert.alert('Error', 'Failed to remove question from set');
+              Alert.alert(tCommon('error'), t('failedToRemoveQuestionFromSet'));
             }
           },
         },
@@ -149,16 +156,17 @@ export default function QuestionSetDetailScreen() {
     );
   };
 
-  const getDifficultyColor = (difficulty: string) => {
-    switch (difficulty) {
+  const getDifficultyColor = (difficulty?: string) => {
+    if (!difficulty) return colors.textSecondary;
+    switch (difficulty.toLowerCase()) {
       case 'easy':
-        return 'bg-green-100 text-green-700 border-green-300';
+        return colors.success;
       case 'medium':
-        return 'bg-yellow-100 text-yellow-700 border-yellow-300';
+        return colors.warning;
       case 'hard':
-        return 'bg-red-100 text-red-700 border-red-300';
+        return colors.error;
       default:
-        return 'bg-gray-100 text-gray-700 border-gray-300';
+        return colors.textSecondary;
     }
   };
 
@@ -167,17 +175,18 @@ export default function QuestionSetDetailScreen() {
   );
 
   const renderQuestionItem = ({ item }: { item: QuestionSetItem }) => (
-    <View className="bg-white p-4 mb-3 rounded-lg border border-gray-200">
+    <View className="p-4 mb-3 rounded-lg border" style={{ backgroundColor: colors.card, borderColor: colors.border }}>
       <View className="flex-row items-start justify-between mb-2">
         <View className="flex-1 mr-2">
-          <Text className="text-base font-semibold text-gray-900 mb-1" numberOfLines={2}>
+          <Text className="text-base font-semibold mb-1" style={{ color: colors.text }} numberOfLines={2}>
             {item.question.content}
           </Text>
           <View className="flex-row items-center mt-2">
             <View
-              className={`px-2 py-1 rounded border ${getDifficultyColor(item.question.difficulty)}`}
+              className="px-2 py-1 rounded border"
+              style={{ backgroundColor: `${getDifficultyColor(item.question.difficulty)}20`, borderColor: getDifficultyColor(item.question.difficulty) }}
             >
-              <Text className="text-xs font-medium capitalize">
+              <Text className="text-xs font-medium capitalize" style={{ color: getDifficultyColor(item.question.difficulty) }}>
                 {item.question.difficulty}
               </Text>
             </View>
@@ -187,13 +196,13 @@ export default function QuestionSetDetailScreen() {
           onPress={() => handleRemoveQuestion(item)}
           className="p-2"
         >
-          <Ionicons name="trash-outline" size={20} color="#ef4444" />
+          <Ionicons name="trash-outline" size={20} color={colors.error} />
         </TouchableOpacity>
       </View>
       {item.question.sampleAnswer && (
-        <View className="mt-2 pt-2 border-t border-gray-100">
-          <Text className="text-xs text-gray-500 mb-1">Sample Answer:</Text>
-          <Text className="text-sm text-gray-700" numberOfLines={2}>
+        <View className="mt-2 pt-2 border-t" style={{ borderTopColor: colors.borderLight }}>
+          <Text className="text-xs mb-1" style={{ color: colors.textSecondary }}>{t('sampleAnswer')}:</Text>
+          <Text className="text-sm" style={{ color: colors.text }} numberOfLines={2}>
             {item.question.sampleAnswer}
           </Text>
         </View>
@@ -203,9 +212,9 @@ export default function QuestionSetDetailScreen() {
 
   if (!isValidId) {
     return (
-      <View className="flex-1 bg-gray-50" style={{ paddingTop: insets.top }}>
+      <View className="flex-1" style={{ backgroundColor: colors.background, paddingTop: insets.top }}>
         <View className="flex-1 justify-center items-center">
-          <ActivityIndicator size="large" color="#2563eb" />
+          <ActivityIndicator size="large" color={colors.primary} />
         </View>
       </View>
     );
@@ -213,9 +222,9 @@ export default function QuestionSetDetailScreen() {
 
   if (loading) {
     return (
-      <View className="flex-1 bg-gray-50" style={{ paddingTop: insets.top }}>
+      <View className="flex-1" style={{ backgroundColor: colors.background, paddingTop: insets.top }}>
         <View className="flex-1 justify-center items-center">
-          <ActivityIndicator size="large" color="#2563eb" />
+          <ActivityIndicator size="large" color={colors.primary} />
         </View>
       </View>
     );
@@ -223,9 +232,9 @@ export default function QuestionSetDetailScreen() {
 
   if (!questionSet) {
     return (
-      <View className="flex-1 bg-gray-50" style={{ paddingTop: insets.top }}>
+      <View className="flex-1" style={{ backgroundColor: colors.background, paddingTop: insets.top }}>
         <View className="flex-1 justify-center items-center">
-          <Text className="text-gray-500">Question set not found</Text>
+          <Text style={{ color: colors.textSecondary }}>{t('questionSetNotFound')}</Text>
         </View>
       </View>
     );
@@ -234,20 +243,20 @@ export default function QuestionSetDetailScreen() {
   const questions = questionSet.questionSetItems || [];
 
   return (
-    <View className="flex-1 bg-gray-50" style={{ paddingTop: insets.top }}>
+    <View className="flex-1" style={{ backgroundColor: colors.background, paddingTop: insets.top }}>
       <View className="flex-1">
         {/* Header */}
-        <View className="bg-white px-4 py-3 border-b border-gray-200 flex-row items-center justify-between">
+        <View className="px-4 py-3 border-b flex-row items-center justify-between" style={{ backgroundColor: colors.surface, borderBottomColor: colors.border }}>
           <View className="flex-row items-center flex-1">
             <TouchableOpacity onPress={() => router.back()} className="mr-4">
-              <Ionicons name="arrow-back" size={24} color="#1f2937" />
+              <Ionicons name="arrow-back" size={24} color={colors.text} />
             </TouchableOpacity>
             <View className="flex-1">
-              <Text className="text-xl font-bold text-gray-900" numberOfLines={1}>
+              <Text className="text-xl font-bold" style={{ color: colors.text }} numberOfLines={1}>
                 {questionSet.title}
               </Text>
               {questionSet.description && (
-                <Text className="text-sm text-gray-500 mt-1" numberOfLines={1}>
+                <Text className="text-sm mt-1" style={{ color: colors.textSecondary }} numberOfLines={1}>
                   {questionSet.description}
                 </Text>
               )}
@@ -257,37 +266,39 @@ export default function QuestionSetDetailScreen() {
             onPress={() => router.push(`/recruitment/question-sets/form?id=${questionSet.setId}`)}
             className="p-2"
           >
-            <Ionicons name="pencil-outline" size={24} color="#2563eb" />
+            <Ionicons name="pencil-outline" size={24} color={colors.primary} />
           </TouchableOpacity>
         </View>
 
         <View className="flex-1 px-4 pt-4">
           {/* Actions */}
           <View className="flex-row items-center justify-between mb-4">
-            <Text className="text-lg font-semibold text-gray-900">
-              {questions.length} Question{questions.length !== 1 ? 's' : ''}
+            <Text className="text-lg font-semibold" style={{ color: colors.text }}>
+              {questions.length} {questions.length !== 1 ? t('questions') : t('question')}
             </Text>
             <TouchableOpacity
               onPress={handleOpenAddModal}
-              className="bg-blue-600 px-4 py-2 rounded-lg flex-row items-center"
+              className="px-4 py-2 rounded-lg flex-row items-center"
+              style={{ backgroundColor: colors.primary }}
             >
               <Ionicons name="add" size={20} color="white" />
-              <Text className="text-white font-semibold ml-2">Add Questions</Text>
+              <Text className="text-white font-semibold ml-2">{t('addQuestions')}</Text>
             </TouchableOpacity>
           </View>
 
           {/* Questions List */}
           {questions.length === 0 ? (
             <View className="flex-1 justify-center items-center">
-              <Ionicons name="help-circle-outline" size={64} color="#9ca3af" />
-              <Text className="text-gray-500 text-center mt-4">
-                No questions in this set
+              <Ionicons name="help-circle-outline" size={64} color={colors.textTertiary} />
+              <Text className="text-center mt-4" style={{ color: colors.textSecondary }}>
+                {t('noQuestionsInSet')}
               </Text>
               <TouchableOpacity
                 onPress={handleOpenAddModal}
-                className="mt-4 bg-blue-600 px-6 py-3 rounded-lg"
+                className="mt-4 px-6 py-3 rounded-lg"
+                style={{ backgroundColor: colors.primary }}
               >
-                <Text className="text-white font-semibold">Add Questions</Text>
+                <Text className="text-white font-semibold">{t('addQuestions')}</Text>
               </TouchableOpacity>
             </View>
           ) : (
@@ -296,9 +307,10 @@ export default function QuestionSetDetailScreen() {
               renderItem={renderQuestionItem}
               keyExtractor={(item) => item.setItemId.toString()}
               refreshControl={
-                <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+                <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
               }
               contentContainerStyle={{ paddingBottom: 20 }}
+              style={{ backgroundColor: colors.background }}
             />
           )}
         </View>
@@ -310,15 +322,15 @@ export default function QuestionSetDetailScreen() {
           presentationStyle="pageSheet"
           onRequestClose={() => setShowAddModal(false)}
         >
-          <View className="flex-1 bg-gray-50" style={{ paddingTop: insets.top }}>
+          <View className="flex-1" style={{ backgroundColor: colors.background, paddingTop: insets.top }}>
             <View className="flex-1">
               {/* Modal Header */}
-              <View className="bg-white px-4 py-3 border-b border-gray-200 flex-row items-center justify-between">
-                <Text className="text-xl font-bold text-gray-900">
-                  Add Questions
+              <View className="px-4 py-3 border-b flex-row items-center justify-between" style={{ backgroundColor: colors.surface, borderBottomColor: colors.border }}>
+                <Text className="text-xl font-bold" style={{ color: colors.text }}>
+                  {t('addQuestions')}
                 </Text>
                 <TouchableOpacity onPress={() => setShowAddModal(false)}>
-                  <Ionicons name="close" size={24} color="#1f2937" />
+                  <Ionicons name="close" size={24} color={colors.text} />
                 </TouchableOpacity>
               </View>
 
@@ -328,14 +340,16 @@ export default function QuestionSetDetailScreen() {
                   <Ionicons
                     name="search-outline"
                     size={20}
-                    color="#9ca3af"
+                    color={colors.textSecondary}
                     style={{ position: 'absolute', left: 12, top: 12, zIndex: 1 }}
                   />
                   <TextInput
-                    placeholder="Search questions..."
+                    placeholder={t('searchQuestions')}
+                    placeholderTextColor={colors.textTertiary}
                     value={searchTerm}
                     onChangeText={setSearchTerm}
-                    className="bg-white pl-10 pr-4 py-3 rounded-lg border border-gray-200"
+                    className="pl-10 pr-4 py-3 rounded-lg border"
+                    style={{ backgroundColor: colors.card, borderColor: colors.border, color: colors.text }}
                   />
                 </View>
               </View>
@@ -343,25 +357,26 @@ export default function QuestionSetDetailScreen() {
               {/* Questions List */}
               {loadingQuestions ? (
                 <View className="flex-1 justify-center items-center">
-                  <ActivityIndicator size="large" color="#2563eb" />
+                  <ActivityIndicator size="large" color={colors.primary} />
                 </View>
               ) : filteredAvailableQuestions.length === 0 ? (
                 <View className="flex-1 justify-center items-center">
-                  <Text className="text-gray-500">No available questions</Text>
+                  <Text style={{ color: colors.textSecondary }}>{t('noAvailableQuestions')}</Text>
                 </View>
               ) : (
                 <FlatList
                   data={filteredAvailableQuestions}
                   keyExtractor={(item) => item.questionId.toString()}
                   contentContainerStyle={{ padding: 16 }}
+                  style={{ backgroundColor: colors.background }}
                   renderItem={({ item }) => (
                     <TouchableOpacity
                       onPress={() => handleToggleQuestionSelect(item.questionId)}
-                      className={`bg-white p-4 mb-3 rounded-lg border ${
-                        selectedQuestionIds.includes(item.questionId)
-                          ? 'border-blue-500 bg-blue-50'
-                          : 'border-gray-200'
-                      }`}
+                      className="p-4 mb-3 rounded-lg border"
+                      style={{
+                        backgroundColor: selectedQuestionIds.includes(item.questionId) ? colors.primaryLight : colors.card,
+                        borderColor: selectedQuestionIds.includes(item.questionId) ? colors.primary : colors.border,
+                      }}
                     >
                       <View className="flex-row items-start">
                         <View className="mr-3 mt-1">
@@ -374,19 +389,20 @@ export default function QuestionSetDetailScreen() {
                             size={24}
                             color={
                               selectedQuestionIds.includes(item.questionId)
-                                ? '#2563eb'
-                                : '#9ca3af'
+                                ? colors.primary
+                                : colors.textSecondary
                             }
                           />
                         </View>
                         <View className="flex-1">
-                          <Text className="text-base font-semibold text-gray-900 mb-1" numberOfLines={2}>
+                          <Text className="text-base font-semibold mb-1" style={{ color: colors.text }} numberOfLines={2}>
                             {item.content}
                           </Text>
                           <View
-                            className={`px-2 py-1 rounded border ${getDifficultyColor(item.difficulty)} self-start`}
+                            className="px-2 py-1 rounded border self-start"
+                            style={{ backgroundColor: `${getDifficultyColor(item.difficulty)}20`, borderColor: getDifficultyColor(item.difficulty) }}
                           >
-                            <Text className="text-xs font-medium capitalize">
+                            <Text className="text-xs font-medium capitalize" style={{ color: getDifficultyColor(item.difficulty) }}>
                               {item.difficulty}
                             </Text>
                           </View>
@@ -398,22 +414,24 @@ export default function QuestionSetDetailScreen() {
               )}
 
               {/* Modal Footer */}
-              <View className="bg-white px-4 py-3 border-t border-gray-200 flex-row justify-end">
+              <View className="px-4 py-3 border-t flex-row justify-end" style={{ backgroundColor: colors.surface, borderTopColor: colors.border }}>
                 <TouchableOpacity
                   onPress={() => setShowAddModal(false)}
                   className="px-4 py-2 mr-2"
                 >
-                  <Text className="text-gray-700 font-semibold">Cancel</Text>
+                  <Text className="font-semibold" style={{ color: colors.text }}>{tCommon('cancel')}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   onPress={handleAddQuestions}
                   disabled={selectedQuestionIds.length === 0}
-                  className={`bg-blue-600 px-6 py-2 rounded-lg ${
-                    selectedQuestionIds.length === 0 ? 'opacity-50' : ''
-                  }`}
+                  className="px-6 py-2 rounded-lg"
+                  style={{
+                    backgroundColor: colors.primary,
+                    opacity: selectedQuestionIds.length === 0 ? 0.5 : 1,
+                  }}
                 >
                   <Text className="text-white font-semibold">
-                    Add ({selectedQuestionIds.length})
+                    {tCommon('add')} ({selectedQuestionIds.length})
                   </Text>
                 </TouchableOpacity>
               </View>

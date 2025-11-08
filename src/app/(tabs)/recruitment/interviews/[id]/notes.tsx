@@ -11,8 +11,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { recruitmentAPI, Interview } from '@/services/api/recruitment';
-import { ApproveOfferModal } from '@/components/recruitment/approve-offer-modal';
-import { RejectApplicationModal } from '@/components/recruitment/reject-application-modal';
+import { ApproveOfferModal } from '@/components/recruitment/ApproveOfferModal';
+import { RejectApplicationModal } from '@/components/recruitment/RejectApplicationModal';
 
 export default function InterviewNotesScreen() {
   const router = useRouter();

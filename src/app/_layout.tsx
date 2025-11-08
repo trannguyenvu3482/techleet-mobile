@@ -7,9 +7,11 @@ import { Appearance } from 'react-native'
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 
 import "../../global.css"
+import "@/i18n"
 import { notificationService } from "@/services/notifications"
 import { reminderService } from "@/services/reminders"
 import { useThemeStore } from "@/store/theme-store"
+import { useLanguageStore } from "@/store/language-store"
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -32,9 +34,11 @@ export default function RootLayout() {
   const responseListener = useRef<ReturnType<typeof notificationService.addNotificationResponseReceivedListener> | undefined>(undefined);
   const appearanceListener = useRef<ReturnType<typeof Appearance.addChangeListener> | undefined>(undefined);
   const { initialize: initializeTheme, isDark, updateSystemTheme } = useThemeStore();
+  const { initialize: initializeLanguage } = useLanguageStore();
 
   useEffect(() => {
     initializeTheme();
+    initializeLanguage();
     notificationService.initialize();
     reminderService.initialize();
 
@@ -70,7 +74,7 @@ export default function RootLayout() {
         appearanceListener.current.remove();
       }
     };
-  }, [initializeTheme, updateSystemTheme, router]);
+  }, [initializeTheme, initializeLanguage, updateSystemTheme, router]);
 
   return (
     <QueryClientProvider client={queryClient}>

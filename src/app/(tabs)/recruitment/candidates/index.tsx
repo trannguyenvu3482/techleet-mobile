@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { recruitmentAPI, Candidate, GetCandidatesParams , JobPosting } from '@/services/api/recruitment';
 import { exportService } from '@/utils/export';
@@ -33,6 +34,8 @@ export default function CandidateListScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ jobId?: string }>();
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation('recruitment');
+  const { t: tCommon } = useTranslation('common');
   const { isDark } = useThemeStore();
   const colors = getColors(isDark);
   const [candidates, setCandidates] = useState<CandidateListItem[]>([]);
@@ -259,7 +262,7 @@ export default function CandidateListScreen() {
             <Text className="text-sm mb-1" style={{ color: colors.textTertiary }}>{item.phoneNumber}</Text>
           )}
           {item.jobTitle && (
-            <Text className="text-xs mt-1" style={{ color: colors.primary }}>Applied for: {item.jobTitle}</Text>
+            <Text className="text-xs mt-1" style={{ color: colors.primary }}>{t('appliedFor')} {item.jobTitle}</Text>
           )}
         </View>
         {item.status && (
@@ -288,7 +291,7 @@ export default function CandidateListScreen() {
           <View className="flex-row items-center">
             <Ionicons name="star-outline" size={14} color={colors.warning} />
             <Text className="text-xs font-semibold ml-1" style={{ color: colors.text }}>
-              Score: {item.score.toFixed(1)}
+              {t('score')} {item.score.toFixed(1)}
             </Text>
           </View>
         )}
@@ -300,10 +303,10 @@ export default function CandidateListScreen() {
     <View className="items-center justify-center py-12">
       <Ionicons name="people-outline" size={64} color={colors.textTertiary} />
       <Text className="text-lg font-semibold mt-4" style={{ color: colors.textSecondary }}>
-        No candidates found
+        {t('noCandidates')}
       </Text>
       <Text className="mt-2" style={{ color: colors.textTertiary }}>
-        {searchTerm ? 'Try adjusting your search' : 'No candidates available'}
+        {searchTerm ? t('tryAdjustingFilters') : t('noCandidates')}
       </Text>
     </View>
   );
@@ -313,7 +316,7 @@ export default function CandidateListScreen() {
       <View className="flex-1" style={{ backgroundColor: colors.background, paddingTop: insets.top }}>
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator size="large" color={colors.primary} />
-          <Text className="mt-4" style={{ color: colors.textSecondary }}>Loading candidates...</Text>
+          <Text className="mt-4" style={{ color: colors.textSecondary }}>{t('loadingCandidates')}</Text>
         </View>
       </View>
     );
@@ -324,7 +327,10 @@ export default function CandidateListScreen() {
       {/* Header */}
       <View className="px-4 pt-4 pb-2 border-b" style={{ backgroundColor: colors.surface, borderBottomColor: colors.border }}>
         <View className="flex-row items-center mb-3">
-          <Text className="text-2xl font-bold flex-1" style={{ color: colors.text }}>Candidates</Text>
+          <TouchableOpacity onPress={() => router.back()} className="mr-3">
+            <Ionicons name="arrow-back" size={24} color={colors.text} />
+          </TouchableOpacity>
+          <Text className="text-2xl font-bold flex-1" style={{ color: colors.text }}>{t('candidates')}</Text>
           <View className="flex-row gap-2">
             <TouchableOpacity onPress={handleExport} className="p-2">
               <Ionicons name="download-outline" size={24} color={colors.secondary} />
@@ -334,7 +340,7 @@ export default function CandidateListScreen() {
               className="px-4 py-2 rounded-lg"
               style={{ backgroundColor: colors.primary }}
             >
-              <Text className="text-white font-semibold">Add</Text>
+              <Text className="text-white font-semibold">{tCommon('add')}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -349,7 +355,7 @@ export default function CandidateListScreen() {
           />
           <TextInput
             className="rounded-lg pl-10 pr-4 py-3"
-            placeholder="Search candidates..."
+            placeholder={t('searchCandidates')}
             placeholderTextColor={colors.textTertiary}
             value={searchTerm}
             onChangeText={handleSearch}
@@ -376,7 +382,7 @@ export default function CandidateListScreen() {
                 color: jobFilter === 'all' ? 'white' : colors.textSecondary,
               }}
             >
-              All
+              {t('filters.all')}
             </Text>
           </TouchableOpacity>
           {jobs.map((job) => (
@@ -414,7 +420,7 @@ export default function CandidateListScreen() {
         >
           <View className="flex-row items-center">
             <Ionicons name="filter-outline" size={18} color={colors.textSecondary} />
-            <Text className="text-sm font-semibold ml-2" style={{ color: colors.text }}>Filters & Sort</Text>
+            <Text className="text-sm font-semibold ml-2" style={{ color: colors.text }}>{t('filters')}</Text>
           </View>
           <Ionicons
             name={showFilters ? 'chevron-up' : 'chevron-down'}
@@ -428,15 +434,15 @@ export default function CandidateListScreen() {
           <View className="rounded-lg p-3 mb-2 border" style={{ backgroundColor: colors.surface, borderColor: colors.border }}>
             {/* Sort Options */}
             <View className="mb-3">
-              <Text className="text-xs font-semibold mb-2" style={{ color: colors.text }}>Sort By:</Text>
+              <Text className="text-xs font-semibold mb-2" style={{ color: colors.text }}>{t('sortBy')}</Text>
               <View className="flex-row gap-2 flex-wrap">
                 {[
-                  { value: 'candidateId', label: 'ID' },
-                  { value: 'firstName', label: 'First Name' },
-                  { value: 'lastName', label: 'Last Name' },
-                  { value: 'appliedDate', label: 'Applied Date' },
-                  { value: 'yearsOfExperience', label: 'Experience' },
-                  { value: 'expectedSalary', label: 'Salary' },
+                  { value: 'candidateId', label: t('sortByOptions.candidateId') },
+                  { value: 'firstName', label: t('sortByOptions.firstName') },
+                  { value: 'lastName', label: t('sortByOptions.lastName') },
+                  { value: 'appliedDate', label: t('sortByOptions.appliedDate') },
+                  { value: 'yearsOfExperience', label: t('sortByOptions.yearsOfExperience') },
+                  { value: 'expectedSalary', label: t('sortByOptions.expectedSalary') },
                 ].map((option) => (
                   <TouchableOpacity
                     key={option.value}
@@ -505,7 +511,7 @@ export default function CandidateListScreen() {
                 {loading ? (
                   <ActivityIndicator size="small" color="white" />
                 ) : (
-                  <Text className="text-white font-semibold">Load More</Text>
+                  <Text className="text-white font-semibold">{t('loadMore')}</Text>
                 )}
               </TouchableOpacity>
             </View>

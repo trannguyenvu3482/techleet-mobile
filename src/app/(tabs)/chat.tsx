@@ -11,9 +11,9 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import {
-  SafeAreaView,
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
+import { useTranslation } from "react-i18next";
 import Markdown from "react-native-markdown-display";
 import {
   chatbotAPI,
@@ -27,6 +27,8 @@ import { getColors } from "@/theme/colors";
 
 export default function ChatScreen() {
   const { user } = useAuthStore();
+  const { t } = useTranslation('chat');
+  const { t: tMore } = useTranslation('more');
   const { isDark } = useThemeStore();
   const colors = getColors(isDark);
   const [state, setState] = useState<ChatbotState>({
@@ -55,7 +57,7 @@ export default function ChatScreen() {
       }
       setState((prev) => ({
         ...prev,
-        error: "Unable to initialize chat session. Please try again.",
+        error: t('unableToInitialize'),
       }));
     }
   }, [user?.employeeId]);
@@ -120,7 +122,7 @@ export default function ChatScreen() {
       setState((prev) => ({
         ...prev,
         isLoading: false,
-        error: "Unable to send message. Please try again.",
+        error: t('unableToSend'),
       }));
     }
   }, [inputText, state.sessionId, user?.employeeId]);
@@ -281,11 +283,11 @@ export default function ChatScreen() {
 
   if (!user?.employeeId) {
     return (
-      <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }}>
+      <View className="flex-1" style={{ backgroundColor: colors.background, paddingTop: insets.top }}>
         <View className="flex-1 justify-center items-center">
-          <Text style={{ color: colors.textSecondary }}>Please login to use chat</Text>
+          <Text style={{ color: colors.textSecondary }}>{tMore('pleaseLogin')}</Text>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
@@ -310,10 +312,10 @@ export default function ChatScreen() {
             </View>
             <View>
               <Text className="text-lg font-bold" style={{ color: colors.text }}>
-                AI Assistant
+                {t('title')}
               </Text>
               <Text className="text-xs" style={{ color: colors.textSecondary }}>
-                {state.sessionId ? "Online" : "Connecting..."}
+                {state.sessionId ? t('online') : t('connecting')}
               </Text>
             </View>
           </View>
@@ -331,11 +333,10 @@ export default function ChatScreen() {
             <View className="flex-1 justify-center items-center py-12">
               <Ionicons name="chatbubble-outline" size={64} color={colors.textTertiary} />
               <Text className="text-lg font-semibold mt-4" style={{ color: colors.textSecondary }}>
-                Start a conversation
+                {t('startConversation')}
               </Text>
               <Text className="mt-2 text-center px-8" style={{ color: colors.textTertiary }}>
-                Ask me anything about recruitment, candidates, jobs, or
-                applications
+                {t('askAnything')}
               </Text>
             </View>
           }
@@ -361,7 +362,7 @@ export default function ChatScreen() {
         <View className="border-t px-4 py-3" style={{ backgroundColor: colors.surface, borderTopColor: colors.border }}>
           <View className="flex-row items-center">
             <TextInput
-              placeholder="Type a message..."
+              placeholder={t('placeholder')}
               placeholderTextColor={colors.textTertiary}
               value={inputText}
               onChangeText={setInputText}

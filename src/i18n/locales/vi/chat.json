@@ -1,0 +1,11 @@
+{
+  "title": "Trợ lý AI",
+  "online": "Trực tuyến",
+  "connecting": "Đang kết nối...",
+  "placeholder": "Nhập tin nhắn...",
+  "startConversation": "Bắt đầu cuộc trò chuyện",
+  "askAnything": "Hỏi tôi bất cứ điều gì về tuyển dụng, ứng viên, công việc hoặc ứng tuyển",
+  "unableToInitialize": "Không thể khởi tạo phiên chat. Vui lòng thử lại.",
+  "unableToSend": "Không thể gửi tin nhắn. Vui lòng thử lại."
+}
+

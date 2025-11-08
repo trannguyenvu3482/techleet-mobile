@@ -1,0 +1,21 @@
+{
+  "title": "Search",
+  "placeholder": "Search jobs, candidates, applications...",
+  "noResults": "No results found",
+  "adjustFilters": "Try adjusting your search query or filters",
+  "recentSearches": "Recent Searches",
+  "clear": "Clear",
+  "suggestions": "Suggestions",
+  "jobs": "Jobs",
+  "candidates": "Candidates",
+  "applications": "Applications",
+  "interviews": "Interviews",
+  "results": "result",
+  "resultsPlural": "results",
+  "skills": "Skills",
+  "applied": "Applied",
+  "unknownCandidate": "Unknown Candidate",
+  "unknownPosition": "Unknown Position",
+  "failedToSearch": "Failed to perform search"
+}
+

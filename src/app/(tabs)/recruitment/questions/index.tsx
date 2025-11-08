@@ -11,13 +11,20 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Picker } from '@react-native-picker/picker';
 import { recruitmentAPI, Question } from '@/services/api/recruitment';
+import { useThemeStore } from '@/store/theme-store';
+import { getColors } from '@/theme/colors';
 
 export default function QuestionsListScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation('recruitment');
+  const { t: tCommon } = useTranslation('common');
+  const { isDark } = useThemeStore();
+  const colors = getColors(isDark);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -56,7 +63,7 @@ export default function QuestionsListScreen() {
       setTotal(response.total);
     } catch (error) {
       console.error('Error fetching questions:', error);
-      Alert.alert('Error', 'Failed to load questions');
+      Alert.alert(tCommon('error'), t('failedToLoadQuestions'));
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -119,67 +126,77 @@ export default function QuestionsListScreen() {
   const getDifficultyColor = (difficulty: string) => {
     switch (difficulty) {
       case 'easy':
-        return 'bg-green-100 text-green-700 border-green-300';
+        return { bg: colors.successLight, text: colors.success, border: colors.success };
       case 'medium':
-        return 'bg-yellow-100 text-yellow-700 border-yellow-300';
+        return { bg: colors.warningLight, text: colors.warning, border: colors.warning };
       case 'hard':
-        return 'bg-red-100 text-red-700 border-red-300';
+        return { bg: colors.errorLight, text: colors.error, border: colors.error };
       default:
-        return 'bg-gray-100 text-gray-700 border-gray-300';
+        return { bg: colors.surface, text: colors.textSecondary, border: colors.border };
     }
   };
 
-  const renderQuestionItem = ({ item }: { item: Question }) => (
-    <TouchableOpacity
-      onPress={() => handleQuestionPress(item)}
-      className="bg-white p-4 mb-3 rounded-lg border border-gray-200"
-    >
-      <View className="flex-row items-start justify-between mb-2">
-        <View className="flex-1 mr-2">
-          <Text className="text-base font-semibold text-gray-900 mb-1" numberOfLines={2}>
-            {item.content}
-          </Text>
-          <View className="flex-row items-center mt-2">
-            <View className={`px-2 py-1 rounded border ${getDifficultyColor(item.difficulty)}`}>
-              <Text className="text-xs font-medium capitalize">{item.difficulty}</Text>
+  const renderQuestionItem = ({ item }: { item: Question }) => {
+    const difficultyColors = getDifficultyColor(item.difficulty);
+    return (
+      <TouchableOpacity
+        onPress={() => handleQuestionPress(item)}
+        className="p-4 mb-3 rounded-lg border"
+        style={{ backgroundColor: colors.card, borderColor: colors.border }}
+      >
+        <View className="flex-row items-start justify-between mb-2">
+          <View className="flex-1 mr-2">
+            <Text className="text-base font-semibold mb-1" style={{ color: colors.text }} numberOfLines={2}>
+              {item.content}
+            </Text>
+            <View className="flex-row items-center mt-2">
+              <View className="px-2 py-1 rounded border" style={{ backgroundColor: difficultyColors.bg, borderColor: difficultyColors.border }}>
+                <Text className="text-xs font-medium capitalize" style={{ color: difficultyColors.text }}>{item.difficulty}</Text>
+              </View>
             </View>
           </View>
+          <TouchableOpacity
+            onPress={() => handleDeleteQuestion(item)}
+            className="p-2"
+          >
+            <Ionicons name="trash-outline" size={20} color={colors.error} />
+          </TouchableOpacity>
         </View>
-        <TouchableOpacity
-          onPress={() => handleDeleteQuestion(item)}
-          className="p-2"
-        >
-          <Ionicons name="trash-outline" size={20} color="#ef4444" />
-        </TouchableOpacity>
-      </View>
-      {item.sampleAnswer && (
-        <View className="mt-2 pt-2 border-t border-gray-100">
-          <Text className="text-xs text-gray-500 mb-1">Sample Answer:</Text>
-          <Text className="text-sm text-gray-700" numberOfLines={2}>
-            {item.sampleAnswer}
-          </Text>
-        </View>
-      )}
-    </TouchableOpacity>
-  );
+        {item.sampleAnswer && (
+          <View className="mt-2 pt-2 border-t" style={{ borderTopColor: colors.borderLight }}>
+            <Text className="text-xs mb-1" style={{ color: colors.textSecondary }}>Sample Answer:</Text>
+            <Text className="text-sm" style={{ color: colors.text }} numberOfLines={2}>
+              {item.sampleAnswer}
+            </Text>
+          </View>
+        )}
+      </TouchableOpacity>
+    );
+  };
 
   return (
-    <View className="flex-1 bg-gray-50" style={{ paddingTop: insets.top }}>
+    <View className="flex-1" style={{ backgroundColor: colors.background, paddingTop: insets.top }}>
       <View className="flex-1 px-4 pt-4">
         {/* Header */}
         <View className="flex-row items-center justify-between mb-4">
-          <View>
-            <Text className="text-2xl font-bold text-gray-900">Questions</Text>
-            <Text className="text-sm text-gray-500 mt-1">
-              {total} question{total !== 1 ? 's' : ''}
-            </Text>
+          <View className="flex-row items-center flex-1">
+            <TouchableOpacity onPress={() => router.back()} className="mr-3">
+              <Ionicons name="arrow-back" size={24} color={colors.text} />
+            </TouchableOpacity>
+            <View>
+              <Text className="text-2xl font-bold" style={{ color: colors.text }}>{t('questions')}</Text>
+              <Text className="text-sm mt-1" style={{ color: colors.textSecondary }}>
+                {total} {total !== 1 ? t('questions') : t('question')}
+              </Text>
+            </View>
           </View>
           <TouchableOpacity
             onPress={handleCreateQuestion}
-            className="bg-blue-600 px-4 py-2 rounded-lg flex-row items-center"
+            className="px-4 py-2 rounded-lg flex-row items-center"
+            style={{ backgroundColor: colors.primary }}
           >
             <Ionicons name="add" size={20} color="white" />
-            <Text className="text-white font-semibold ml-2">New</Text>
+            <Text className="text-white font-semibold ml-2">{t('new')}</Text>
           </TouchableOpacity>
         </View>
 
@@ -189,33 +206,35 @@ export default function QuestionsListScreen() {
             <Ionicons
               name="search-outline"
               size={20}
-              color="#9ca3af"
+              color={colors.textSecondary}
               style={{ position: 'absolute', left: 12, top: 12, zIndex: 1 }}
             />
             <TextInput
-              placeholder="Search questions..."
+              placeholder={t('searchQuestions')}
+              placeholderTextColor={colors.textTertiary}
               value={searchTerm}
               onChangeText={(text) => {
                 setSearchTerm(text);
                 setPage(0);
               }}
-              className="bg-white pl-10 pr-4 py-3 rounded-lg border border-gray-200"
+              className="pl-10 pr-4 py-3 rounded-lg border"
+              style={{ backgroundColor: colors.card, borderColor: colors.border, color: colors.text }}
             />
           </View>
 
-          <View className="bg-white rounded-lg border border-gray-200">
+          <View className="rounded-lg border" style={{ backgroundColor: colors.card, borderColor: colors.border }}>
             <Picker
               selectedValue={difficultyFilter}
               onValueChange={(value) => {
                 setDifficultyFilter(value);
                 setPage(0);
               }}
-              style={{ height: 50 }}
+              style={{ height: 50, color: colors.text }}
             >
-              <Picker.Item label="All Difficulties" value="all" />
-              <Picker.Item label="Easy" value="easy" />
-              <Picker.Item label="Medium" value="medium" />
-              <Picker.Item label="Hard" value="hard" />
+              <Picker.Item label={`${t('difficulty')} ${t('all')}`} value="all" />
+              <Picker.Item label={t('easy')} value="easy" />
+              <Picker.Item label={t('medium')} value="medium" />
+              <Picker.Item label={t('hard')} value="hard" />
             </Picker>
           </View>
         </View>
@@ -223,19 +242,20 @@ export default function QuestionsListScreen() {
         {/* Questions List */}
         {loading && !refreshing ? (
           <View className="flex-1 justify-center items-center">
-            <ActivityIndicator size="large" color="#2563eb" />
+            <ActivityIndicator size="large" color={colors.primary} />
           </View>
         ) : questions.length === 0 ? (
           <View className="flex-1 justify-center items-center">
-            <Ionicons name="help-circle-outline" size={64} color="#9ca3af" />
-            <Text className="text-gray-500 text-center mt-4">
-              No questions found
+            <Ionicons name="help-circle-outline" size={64} color={colors.textTertiary} />
+            <Text className="text-center mt-4" style={{ color: colors.textSecondary }}>
+              {t('noQuestions')}
             </Text>
             <TouchableOpacity
               onPress={handleCreateQuestion}
-              className="mt-4 bg-blue-600 px-6 py-3 rounded-lg"
+              className="mt-4 px-6 py-3 rounded-lg"
+              style={{ backgroundColor: colors.primary }}
             >
-              <Text className="text-white font-semibold">Create First Question</Text>
+              <Text className="text-white font-semibold">{tCommon('add')} {t('question')}</Text>
             </TouchableOpacity>
           </View>
         ) : (
@@ -247,20 +267,23 @@ export default function QuestionsListScreen() {
               <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
             }
             contentContainerStyle={{ paddingBottom: 20 }}
+            style={{ backgroundColor: colors.background }}
             ListFooterComponent={
               questions.length < total ? (
                 <View className="py-4">
                   <TouchableOpacity
                     onPress={handleLoadMore}
                     disabled={loading}
-                    className={`bg-blue-600 px-4 py-2 rounded-lg items-center ${
-                      loading ? 'opacity-50' : ''
-                    }`}
+                    className="px-4 py-2 rounded-lg items-center"
+                    style={{
+                      backgroundColor: colors.primary,
+                      opacity: loading ? 0.5 : 1,
+                    }}
                   >
                     {loading ? (
                       <ActivityIndicator size="small" color="white" />
                     ) : (
-                      <Text className="text-white font-semibold">Load More</Text>
+                      <Text className="text-white font-semibold">{t('loadMore')}</Text>
                     )}
                   </TouchableOpacity>
                 </View>

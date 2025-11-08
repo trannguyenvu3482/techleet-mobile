@@ -1,0 +1,11 @@
+{
+  "title": "AI Assistant",
+  "online": "Online",
+  "connecting": "Connecting...",
+  "placeholder": "Type a message...",
+  "startConversation": "Start a conversation",
+  "askAnything": "Ask me anything about recruitment, candidates, jobs, or applications",
+  "unableToInitialize": "Unable to initialize chat session. Please try again.",
+  "unableToSend": "Unable to send message. Please try again."
+}
+

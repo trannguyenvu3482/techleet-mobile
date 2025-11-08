@@ -1,0 +1,24 @@
+{
+  "title": "Cài đặt thông báo",
+  "pushNotifications": "Thông báo đẩy",
+  "enabled": "Đã bật",
+  "disabled": "Đã tắt",
+  "enableNotifications": "Bật thông báo",
+  "unregisterDevice": "Hủy đăng ký thiết bị",
+  "notificationTypes": "Loại thông báo",
+  "newApplications": "Ứng tuyển mới",
+  "newApplicationsDesc": "Nhận thông báo khi có ứng tuyển mới",
+  "interviews": "Phỏng vấn",
+  "interviewsDesc": "Nhận thông báo về lịch phỏng vấn và cập nhật",
+  "reminders": "Nhắc nhở",
+  "remindersDesc": "Nhận nhắc nhở trước khi phỏng vấn",
+  "statusChanges": "Thay đổi trạng thái",
+  "statusChangesDesc": "Nhận thông báo khi trạng thái ứng tuyển thay đổi",
+  "deviceToken": "Mã thiết bị:",
+  "unregisterConfirm": "Bạn có chắc chắn muốn tắt thông báo đẩy?",
+  "unregisterSuccess": "Đã hủy đăng ký thiết bị",
+  "enableSuccess": "Đã bật thông báo đẩy",
+  "permissionDenied": "Vui lòng bật thông báo trong cài đặt thiết bị",
+  "enableError": "Không thể bật thông báo"
+}
+

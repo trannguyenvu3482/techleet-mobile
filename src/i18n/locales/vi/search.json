@@ -1,0 +1,21 @@
+{
+  "title": "Tìm kiếm",
+  "placeholder": "Tìm kiếm công việc, ứng viên, ứng tuyển...",
+  "noResults": "Không tìm thấy kết quả",
+  "adjustFilters": "Thử điều chỉnh truy vấn tìm kiếm hoặc bộ lọc",
+  "recentSearches": "Tìm kiếm gần đây",
+  "clear": "Xóa",
+  "suggestions": "Gợi ý",
+  "jobs": "Công việc",
+  "candidates": "Ứng viên",
+  "applications": "Ứng tuyển",
+  "interviews": "Phỏng vấn",
+  "results": "kết quả",
+  "resultsPlural": "kết quả",
+  "skills": "Kỹ năng",
+  "applied": "Đã nộp",
+  "unknownCandidate": "Ứng viên không xác định",
+  "unknownPosition": "Vị trí không xác định",
+  "failedToSearch": "Không thể thực hiện tìm kiếm"
+}
+

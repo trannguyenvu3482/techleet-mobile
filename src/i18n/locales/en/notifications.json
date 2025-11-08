@@ -1,0 +1,24 @@
+{
+  "title": "Notification Settings",
+  "pushNotifications": "Push Notifications",
+  "enabled": "Enabled",
+  "disabled": "Disabled",
+  "enableNotifications": "Enable Notifications",
+  "unregisterDevice": "Unregister Device",
+  "notificationTypes": "Notification Types",
+  "newApplications": "New Applications",
+  "newApplicationsDesc": "Get notified when new applications are received",
+  "interviews": "Interviews",
+  "interviewsDesc": "Get notified about interview schedules and updates",
+  "reminders": "Reminders",
+  "remindersDesc": "Receive reminders before interviews",
+  "statusChanges": "Status Changes",
+  "statusChangesDesc": "Get notified when application status changes",
+  "deviceToken": "Device Token:",
+  "unregisterConfirm": "Are you sure you want to disable push notifications?",
+  "unregisterSuccess": "Device unregistered",
+  "enableSuccess": "Push notifications enabled",
+  "permissionDenied": "Please enable notifications in your device settings",
+  "enableError": "Failed to enable notifications"
+}
+

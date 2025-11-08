@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { searchAPI, SearchResult } from '@/services/api/search';
 import { searchHistoryService, SearchHistoryItem } from '@/services/search-history';
@@ -23,6 +24,8 @@ type SearchType = 'jobs' | 'candidates' | 'applications' | 'interviews';
 export default function SearchScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation('search');
+  const { t: tCommon } = useTranslation('common');
   const { isDark } = useThemeStore();
   const colors = getColors(isDark);
   const [query, setQuery] = useState('');
@@ -91,7 +94,7 @@ export default function SearchScreen() {
       await loadHistory();
     } catch (error) {
       console.error('Error performing search:', error);
-      Alert.alert('Error', 'Failed to perform search');
+      Alert.alert(tCommon('error'), t('failedToSearch'));
     } finally {
       setLoading(false);
     }
@@ -167,7 +170,7 @@ export default function SearchScreen() {
           <Text className="text-sm mb-1" style={{ color: colors.textSecondary }}>{candidate.email}</Text>
           {candidate.skills && (
             <Text className="text-xs" style={{ color: colors.textTertiary }} numberOfLines={1}>
-              Skills: {candidate.skills}
+              {t('skills')}: {candidate.skills}
             </Text>
           )}
         </View>
@@ -188,13 +191,13 @@ export default function SearchScreen() {
           <Text className="text-base font-bold mb-1" style={{ color: colors.text }}>
             {application.candidate
               ? `${application.candidate.firstName} ${application.candidate.lastName}`
-              : 'Unknown Candidate'}
+              : t('unknownCandidate')}
           </Text>
           <Text className="text-sm mb-1" style={{ color: colors.textSecondary }}>
-            {application.jobPosting?.title || 'Unknown Position'}
+            {application.jobPosting?.title || t('unknownPosition')}
           </Text>
           <Text className="text-xs" style={{ color: colors.textTertiary }}>
-            Applied: {formatDate(application.appliedAt)}
+            {t('applied')}: {formatDate(application.appliedAt)}
           </Text>
         </View>
         <Ionicons name="document-text-outline" size={24} color={colors.warning} />
@@ -240,10 +243,10 @@ export default function SearchScreen() {
         <View className="flex-1 items-center justify-center py-12 px-4">
           <Ionicons name="search-outline" size={64} color={colors.textTertiary} />
           <Text className="text-lg font-semibold mt-4" style={{ color: colors.textSecondary }}>
-            No results found
+            {t('noResults')}
           </Text>
           <Text className="text-sm mt-2 text-center" style={{ color: colors.textTertiary }}>
-            Try adjusting your search query or filters
+            {t('adjustFilters')}
           </Text>
         </View>
       );
@@ -256,7 +259,7 @@ export default function SearchScreen() {
             <View className="flex-row items-center mb-3">
               <Ionicons name="briefcase-outline" size={20} color={colors.primary} />
               <Text className="text-lg font-bold ml-2" style={{ color: colors.text }}>
-                Jobs ({searchResults.jobs.length})
+                {t('jobs')} ({searchResults.jobs.length})
               </Text>
             </View>
             {searchResults.jobs.map(renderJobItem)}
@@ -268,7 +271,7 @@ export default function SearchScreen() {
             <View className="flex-row items-center mb-3">
               <Ionicons name="person-outline" size={20} color={colors.secondary} />
               <Text className="text-lg font-bold ml-2" style={{ color: colors.text }}>
-                Candidates ({searchResults.candidates.length})
+                {t('candidates')} ({searchResults.candidates.length})
               </Text>
             </View>
             {searchResults.candidates.map(renderCandidateItem)}
@@ -280,7 +283,7 @@ export default function SearchScreen() {
             <View className="flex-row items-center mb-3">
               <Ionicons name="document-text-outline" size={20} color={colors.warning} />
               <Text className="text-lg font-bold ml-2" style={{ color: colors.text }}>
-                Applications ({searchResults.applications.length})
+                {t('applications')} ({searchResults.applications.length})
               </Text>
             </View>
             {searchResults.applications.map(renderApplicationItem)}
@@ -292,7 +295,7 @@ export default function SearchScreen() {
             <View className="flex-row items-center mb-3">
               <Ionicons name="calendar-outline" size={20} color={colors.purple} />
               <Text className="text-lg font-bold ml-2" style={{ color: colors.text }}>
-                Interviews ({searchResults.interviews.length})
+                {t('interviews')} ({searchResults.interviews.length})
               </Text>
             </View>
             {searchResults.interviews.map(renderInterviewItem)}
@@ -306,14 +309,14 @@ export default function SearchScreen() {
     <View className="flex-1" style={{ backgroundColor: colors.background, paddingTop: insets.top }}>
       {/* Header */}
       <View className="border-b px-4 py-3" style={{ backgroundColor: colors.surface, borderBottomColor: colors.border }}>
-        <Text className="text-2xl font-bold mb-3" style={{ color: colors.text }}>Search</Text>
+        <Text className="text-2xl font-bold mb-3" style={{ color: colors.text }}>{t('title')}</Text>
 
         {/* Search Bar */}
         <View className="flex-row items-center rounded-lg px-4 py-3 mb-3" style={{ backgroundColor: colors.card }}>
           <Ionicons name="search-outline" size={20} color={colors.textSecondary} />
           <TextInput
             className="flex-1 ml-3"
-            placeholder="Search jobs, candidates, applications..."
+            placeholder={t('placeholder')}
             placeholderTextColor={colors.textTertiary}
             value={query}
             onChangeText={setQuery}
@@ -346,7 +349,7 @@ export default function SearchScreen() {
                   color: selectedTypes.includes(type) ? 'white' : colors.textSecondary,
                 }}
               >
-                {type.charAt(0).toUpperCase() + type.slice(1)}
+                {t(type)}
               </Text>
             </TouchableOpacity>
           ))}
@@ -365,7 +368,7 @@ export default function SearchScreen() {
           {loading ? (
             <ActivityIndicator size="small" color="white" />
           ) : (
-            <Text className="text-white font-semibold">Search</Text>
+            <Text className="text-white font-semibold">{tCommon('search')}</Text>
           )}
         </TouchableOpacity>
       </View>
@@ -373,7 +376,7 @@ export default function SearchScreen() {
       {/* Suggestions */}
       {suggestions.length > 0 && query.length >= 2 && !searchResults && (
         <View className="border-b px-4 py-2" style={{ backgroundColor: colors.surface, borderBottomColor: colors.border }}>
-          <Text className="text-sm font-semibold mb-2" style={{ color: colors.textSecondary }}>Suggestions</Text>
+          <Text className="text-sm font-semibold mb-2" style={{ color: colors.textSecondary }}>{t('suggestions')}</Text>
           {suggestions.map((suggestion, index) => (
             <TouchableOpacity
               key={index}
@@ -391,14 +394,14 @@ export default function SearchScreen() {
       {showHistory && history.length > 0 && !searchResults && query.length === 0 && (
         <View className="flex-1" style={{ backgroundColor: colors.surface }}>
           <View className="flex-row items-center justify-between px-4 py-3 border-b" style={{ borderBottomColor: colors.border }}>
-            <Text className="text-lg font-bold" style={{ color: colors.text }}>Recent Searches</Text>
+            <Text className="text-lg font-bold" style={{ color: colors.text }}>{t('recentSearches')}</Text>
             <TouchableOpacity
               onPress={async () => {
                 await searchHistoryService.clearHistory();
                 await loadHistory();
               }}
             >
-              <Text className="text-sm" style={{ color: colors.primary }}>Clear</Text>
+              <Text className="text-sm" style={{ color: colors.primary }}>{t('clear')}</Text>
             </TouchableOpacity>
           </View>
           <FlatList
@@ -413,7 +416,7 @@ export default function SearchScreen() {
                   <Text style={{ color: colors.text }}>{item.query}</Text>
                   {item.resultCount !== undefined && (
                     <Text className="text-xs" style={{ color: colors.textTertiary }}>
-                      {item.resultCount} result{item.resultCount !== 1 ? 's' : ''}
+                      {item.resultCount} {item.resultCount !== 1 ? t('resultsPlural') : t('results')}
                     </Text>
                   )}
                 </View>
