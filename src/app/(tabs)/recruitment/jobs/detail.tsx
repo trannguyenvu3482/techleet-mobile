@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { recruitmentAPI, JobPosting } from '@/services/api/recruitment';
 import { shareService } from '@/utils/share';
@@ -20,6 +21,8 @@ export default function JobDetailScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ id: string }>();
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation('recruitment');
+  const { t: tCommon } = useTranslation('common');
   const { isDark } = useThemeStore();
   const colors = getColors(isDark);
   const [job, setJob] = useState<JobPosting | null>(null);
@@ -33,12 +36,12 @@ export default function JobDetailScreen() {
       setJob(jobData);
     } catch (error) {
       console.error('Error fetching job:', error);
-      Alert.alert('Error', 'Failed to load job details');
+      Alert.alert(tCommon('error'), t('failedToLoadJobDetails'));
       router.back();
     } finally {
       setLoading(false);
     }
-  }, [router]);
+  }, [router, t, tCommon]);
 
   useEffect(() => {
     if (params.id) {
@@ -50,22 +53,22 @@ export default function JobDetailScreen() {
     if (!job) return;
 
     Alert.alert(
-      'Delete Job',
-      'Are you sure you want to delete this job posting?',
+      t('deleteJob'),
+      t('deleteJobConfirm'),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: tCommon('cancel'), style: 'cancel' },
         {
-          text: 'Delete',
+          text: tCommon('delete'),
           style: 'destructive',
           onPress: async () => {
             try {
               setActionLoading(true);
               await recruitmentAPI.deleteJobPosting(job.jobPostingId);
-              Alert.alert('Success', 'Job posting deleted successfully');
+              Alert.alert(tCommon('success'), t('jobDeletedSuccessfully'));
               router.back();
             } catch (error) {
               console.error('Error deleting job:', error);
-              Alert.alert('Error', 'Failed to delete job posting');
+              Alert.alert(tCommon('error'), t('failedToDeleteJob'));
             } finally {
               setActionLoading(false);
             }
@@ -82,10 +85,10 @@ export default function JobDetailScreen() {
       setActionLoading(true);
       await recruitmentAPI.publishJobPosting(job.jobPostingId);
       await fetchJob(job.jobPostingId);
-      Alert.alert('Success', 'Job posting published successfully');
+      Alert.alert(tCommon('success'), t('jobPublishedSuccessfully'));
     } catch (error) {
       console.error('Error publishing job:', error);
-      Alert.alert('Error', 'Failed to publish job posting');
+      Alert.alert(tCommon('error'), t('failedToPublishJob'));
     } finally {
       setActionLoading(false);
     }
@@ -95,21 +98,21 @@ export default function JobDetailScreen() {
     if (!job) return;
 
     Alert.alert(
-      'Close Job',
-      'Are you sure you want to close this job posting?',
+      t('closeJob'),
+      t('closeJobConfirm'),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: tCommon('cancel'), style: 'cancel' },
         {
-          text: 'Close',
+          text: t('close'),
           onPress: async () => {
             try {
               setActionLoading(true);
               await recruitmentAPI.closeJobPosting(job.jobPostingId);
               await fetchJob(job.jobPostingId);
-              Alert.alert('Success', 'Job posting closed successfully');
+              Alert.alert(tCommon('success'), t('jobClosedSuccessfully'));
             } catch (error) {
               console.error('Error closing job:', error);
-              Alert.alert('Error', 'Failed to close job posting');
+              Alert.alert(tCommon('error'), t('failedToCloseJob'));
             } finally {
               setActionLoading(false);
             }
@@ -132,32 +135,32 @@ export default function JobDetailScreen() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'published':
-        return '#10b981';
+        return colors.success;
       case 'closed':
-        return '#ef4444';
+        return colors.error;
       default:
-        return '#6b7280';
+        return colors.textSecondary;
     }
   };
 
   const getStatusLabel = (status: string) => {
     switch (status) {
       case 'published':
-        return 'Published';
+        return t('published');
       case 'closed':
-        return 'Closed';
+        return t('closed');
       default:
-        return 'Draft';
+        return t('draft');
     }
   };
 
   const formatSalary = (min: string, max: string) => {
     const minNum = parseFloat(min || '0');
     const maxNum = parseFloat(max || '0');
-    if (!minNum && !maxNum) return 'Negotiable';
-    if (!minNum) return `Up to ${maxNum.toLocaleString()} VND`;
-    if (!maxNum) return `From ${minNum.toLocaleString()} VND`;
-    return `${minNum.toLocaleString()} - ${maxNum.toLocaleString()} VND`;
+    if (!minNum && !maxNum) return t('negotiable');
+    if (!minNum) return t('salaryUpTo', { amount: maxNum.toLocaleString() });
+    if (!maxNum) return t('salaryFrom', { amount: minNum.toLocaleString() });
+    return t('salaryRange', { min: minNum.toLocaleString(), max: maxNum.toLocaleString() });
   };
 
   const formatDate = (dateString: string) => {
@@ -170,10 +173,10 @@ export default function JobDetailScreen() {
 
   if (loading) {
     return (
-      <View className="flex-1 bg-gray-50" style={{ paddingTop: insets.top }}>
+      <View className="flex-1" style={{ backgroundColor: colors.background, paddingTop: insets.top }}>
         <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color="#2563eb" />
-          <Text className="text-gray-500 mt-4">Loading job details...</Text>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text className="mt-4" style={{ color: colors.textSecondary }}>{t('loadingJobDetails')}</Text>
         </View>
       </View>
     );
@@ -181,17 +184,18 @@ export default function JobDetailScreen() {
 
   if (!job) {
     return (
-      <View className="flex-1 bg-gray-50" style={{ paddingTop: insets.top }}>
+      <View className="flex-1" style={{ backgroundColor: colors.background, paddingTop: insets.top }}>
         <View className="flex-1 items-center justify-center px-4">
-          <Ionicons name="alert-circle-outline" size={64} color="#9ca3af" />
-          <Text className="text-lg font-semibold text-gray-500 mt-4">
-            Job not found
+          <Ionicons name="alert-circle-outline" size={64} color={colors.textTertiary} />
+          <Text className="text-lg font-semibold mt-4" style={{ color: colors.textSecondary }}>
+            {t('jobNotFound')}
           </Text>
           <TouchableOpacity
             onPress={() => router.back()}
-            className="mt-4 bg-blue-600 px-6 py-3 rounded-lg"
+            className="mt-4 px-6 py-3 rounded-lg"
+            style={{ backgroundColor: colors.primary }}
           >
-            <Text className="text-white font-semibold">Go Back</Text>
+            <Text className="text-white font-semibold">{tCommon('back')}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -235,7 +239,7 @@ export default function JobDetailScreen() {
             style={{ backgroundColor: colors.primary }}
           >
             <Ionicons name="create-outline" size={18} color="white" />
-            <Text className="text-white font-semibold ml-2">Edit</Text>
+            <Text className="text-white font-semibold ml-2">{tCommon('edit')}</Text>
           </TouchableOpacity>
           {job.status === 'draft' && (
             <TouchableOpacity
@@ -249,7 +253,7 @@ export default function JobDetailScreen() {
               ) : (
                 <>
                   <Ionicons name="checkmark-circle-outline" size={18} color="white" />
-                  <Text className="text-white font-semibold ml-2">Publish</Text>
+                  <Text className="text-white font-semibold ml-2">{t('publish')}</Text>
                 </>
               )}
             </TouchableOpacity>
@@ -266,7 +270,7 @@ export default function JobDetailScreen() {
               ) : (
                 <>
                   <Ionicons name="close-circle-outline" size={18} color="white" />
-                  <Text className="text-white font-semibold ml-2">Close</Text>
+                  <Text className="text-white font-semibold ml-2">{t('close')}</Text>
                 </>
               )}
             </TouchableOpacity>
@@ -287,7 +291,7 @@ export default function JobDetailScreen() {
         <View className="rounded-lg p-4 mb-4 border" style={{ backgroundColor: colors.card, borderColor: colors.border }}>
           <View className="flex-row items-center mb-3">
             <Ionicons name="cash-outline" size={20} color={colors.textSecondary} />
-            <Text className="text-sm ml-2" style={{ color: colors.textSecondary }}>Salary</Text>
+            <Text className="text-sm ml-2" style={{ color: colors.textSecondary }}>{t('salary')}</Text>
           </View>
           <Text className="text-base font-semibold mb-3" style={{ color: colors.text }}>
             {formatSalary(job.salaryMin, job.salaryMax)}
@@ -295,15 +299,15 @@ export default function JobDetailScreen() {
 
           <View className="flex-row items-center mb-3">
             <Ionicons name="location-outline" size={20} color={colors.textSecondary} />
-            <Text className="text-sm ml-2" style={{ color: colors.textSecondary }}>Location</Text>
+            <Text className="text-sm ml-2" style={{ color: colors.textSecondary }}>{t('location')}</Text>
           </View>
           <Text className="text-base font-semibold mb-3" style={{ color: colors.text }}>
-            {job.location || 'Not specified'}
+            {job.location || t('notSpecified')}
           </Text>
 
           <View className="flex-row items-center mb-3">
             <Ionicons name="briefcase-outline" size={20} color={colors.textSecondary} />
-            <Text className="text-sm ml-2" style={{ color: colors.textSecondary }}>Employment Type</Text>
+            <Text className="text-sm ml-2" style={{ color: colors.textSecondary }}>{t('employmentType')}</Text>
           </View>
           <Text className="text-base font-semibold mb-3" style={{ color: colors.text }}>
             {job.employmentType}
@@ -311,7 +315,7 @@ export default function JobDetailScreen() {
 
           <View className="flex-row items-center mb-3">
             <Ionicons name="person-outline" size={20} color={colors.textSecondary} />
-            <Text className="text-sm ml-2" style={{ color: colors.textSecondary }}>Experience Level</Text>
+            <Text className="text-sm ml-2" style={{ color: colors.textSecondary }}>{t('experienceLevel')}</Text>
           </View>
           <Text className="text-base font-semibold mb-3" style={{ color: colors.text }}>
             {job.experienceLevel}
@@ -319,7 +323,7 @@ export default function JobDetailScreen() {
 
           <View className="flex-row items-center mb-3">
             <Ionicons name="calendar-outline" size={20} color={colors.textSecondary} />
-            <Text className="text-sm ml-2" style={{ color: colors.textSecondary }}>Deadline</Text>
+            <Text className="text-sm ml-2" style={{ color: colors.textSecondary }}>{t('deadline')}</Text>
           </View>
           <Text className="text-base font-semibold mb-3" style={{ color: colors.text }}>
             {formatDate(job.applicationDeadline)}
@@ -327,7 +331,7 @@ export default function JobDetailScreen() {
 
           <View className="flex-row items-center mb-3">
             <Ionicons name="people-outline" size={20} color={colors.textSecondary} />
-            <Text className="text-sm ml-2" style={{ color: colors.textSecondary }}>Vacancies</Text>
+            <Text className="text-sm ml-2" style={{ color: colors.textSecondary }}>{t('vacancies')}</Text>
           </View>
           <Text className="text-base font-semibold mb-3" style={{ color: colors.text }}>
             {job.vacancies}
@@ -342,7 +346,7 @@ export default function JobDetailScreen() {
               <View className="flex-row items-center">
                 <Ionicons name="document-text-outline" size={20} color={colors.primary} />
                 <Text className="text-base font-semibold ml-2" style={{ color: colors.primary }}>
-                  View Applications {job.applicationCount ? `(${job.applicationCount})` : ''}
+                  {t('viewApplications')} {job.applicationCount ? `(${job.applicationCount})` : ''}
                 </Text>
               </View>
               <Ionicons name="chevron-forward" size={20} color={colors.primary} />
@@ -352,14 +356,14 @@ export default function JobDetailScreen() {
 
         {/* Description */}
         <View className="rounded-lg p-4 mb-4 border" style={{ backgroundColor: colors.card, borderColor: colors.border }}>
-          <Text className="text-lg font-bold mb-3" style={{ color: colors.text }}>Description</Text>
+          <Text className="text-lg font-bold mb-3" style={{ color: colors.text }}>{t('description')}</Text>
           <Text className="text-sm leading-6" style={{ color: colors.text }}>{job.description}</Text>
         </View>
 
         {/* Requirements */}
         {job.requirements && (
           <View className="rounded-lg p-4 mb-4 border" style={{ backgroundColor: colors.card, borderColor: colors.border }}>
-            <Text className="text-lg font-bold mb-3" style={{ color: colors.text }}>Requirements</Text>
+            <Text className="text-lg font-bold mb-3" style={{ color: colors.text }}>{t('requirements')}</Text>
             <Text className="text-sm leading-6" style={{ color: colors.text }}>{job.requirements}</Text>
           </View>
         )}
@@ -367,7 +371,7 @@ export default function JobDetailScreen() {
         {/* Benefits */}
         {job.benefits && (
           <View className="rounded-lg p-4 mb-4 border" style={{ backgroundColor: colors.card, borderColor: colors.border }}>
-            <Text className="text-lg font-bold mb-3" style={{ color: colors.text }}>Benefits</Text>
+            <Text className="text-lg font-bold mb-3" style={{ color: colors.text }}>{t('benefits')}</Text>
             <Text className="text-sm leading-6" style={{ color: colors.text }}>{job.benefits}</Text>
           </View>
         )}
@@ -375,23 +379,23 @@ export default function JobDetailScreen() {
 
         {/* Metadata */}
         <View className="rounded-lg p-4 mb-4 border" style={{ backgroundColor: colors.card, borderColor: colors.border }}>
-          <Text className="text-lg font-bold mb-3" style={{ color: colors.text }}>Additional Info</Text>
+          <Text className="text-lg font-bold mb-3" style={{ color: colors.text }}>{t('additionalInfo')}</Text>
           <View className="space-y-2">
             <View className="flex-row justify-between">
-              <Text className="text-sm" style={{ color: colors.textSecondary }}>Created</Text>
+              <Text className="text-sm" style={{ color: colors.textSecondary }}>{t('created')}</Text>
               <Text className="text-sm font-semibold" style={{ color: colors.text }}>
                 {formatDate(job.createdAt)}
               </Text>
             </View>
             <View className="flex-row justify-between">
-              <Text className="text-sm" style={{ color: colors.textSecondary }}>Last Updated</Text>
+              <Text className="text-sm" style={{ color: colors.textSecondary }}>{t('lastUpdated')}</Text>
               <Text className="text-sm font-semibold" style={{ color: colors.text }}>
                 {formatDate(job.updatedAt)}
               </Text>
             </View>
             {job.educationLevel && (
               <View className="flex-row justify-between">
-                <Text className="text-sm" style={{ color: colors.textSecondary }}>Education Level</Text>
+                <Text className="text-sm" style={{ color: colors.textSecondary }}>{t('educationLevel')}</Text>
                 <Text className="text-sm font-semibold" style={{ color: colors.text }}>
                   {job.educationLevel}
                 </Text>
@@ -399,15 +403,15 @@ export default function JobDetailScreen() {
             )}
             {job.minExperience !== undefined && job.maxExperience !== undefined && (
               <View className="flex-row justify-between">
-                <Text className="text-sm" style={{ color: colors.textSecondary }}>Experience Range</Text>
+                <Text className="text-sm" style={{ color: colors.textSecondary }}>{t('experienceRange')}</Text>
                 <Text className="text-sm font-semibold" style={{ color: colors.text }}>
-                  {job.minExperience} - {job.maxExperience} years
+                  {job.minExperience} - {job.maxExperience} {t('years')}
                 </Text>
               </View>
             )}
             {job.skills && (
               <View className="flex-row justify-between">
-                <Text className="text-sm" style={{ color: colors.textSecondary }}>Skills</Text>
+                <Text className="text-sm" style={{ color: colors.textSecondary }}>{t('skills')}</Text>
                 <Text className="text-sm font-semibold flex-1 text-right" style={{ color: colors.text }}>
                   {job.skills}
                 </Text>

@@ -9,15 +9,22 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { recruitmentAPI, Application, Candidate } from '@/services/api/recruitment';
 import { ApproveOfferModal } from '@/components/recruitment/ApproveOfferModal';
 import { RejectApplicationModal } from '@/components/recruitment/RejectApplicationModal';
+import { useThemeStore } from '@/store/theme-store';
+import { getColors } from '@/theme/colors';
 
 export default function ApplicationDetailScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ id: string }>();
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation('recruitment');
+  const { t: tCommon } = useTranslation('common');
+  const { isDark } = useThemeStore();
+  const colors = getColors(isDark);
   const [application, setApplication] = useState<Application | null>(null);
   const [candidate, setCandidate] = useState<Candidate | null>(null);
   const [loading, setLoading] = useState(true);
@@ -44,12 +51,12 @@ export default function ApplicationDetailScreen() {
       setCandidate(response.candidate);
     } catch (error) {
       console.error('Error fetching application:', error);
-      Alert.alert('Error', 'Failed to load application details');
+      Alert.alert(tCommon('error'), t('failedToLoadApplicationDetails'));
       router.back();
     } finally {
       setLoading(false);
     }
-  }, [router]);
+  }, [router, t, tCommon]);
 
   useEffect(() => {
     // If we're on this route but shouldn't be (e.g., id is 'index'), don't do anything
@@ -69,9 +76,9 @@ export default function ApplicationDetailScreen() {
   // Don't render anything if we shouldn't be here or ID is invalid
   if (shouldNotBeHere || !isValidId) {
     return (
-      <View className="flex-1 bg-gray-50" style={{ paddingTop: insets.top }}>
+      <View className="flex-1" style={{ backgroundColor: colors.background, paddingTop: insets.top }}>
         <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color="#2563eb" />
+          <ActivityIndicator size="large" color={colors.primary} />
         </View>
       </View>
     );
@@ -112,42 +119,40 @@ export default function ApplicationDetailScreen() {
       if (interviews.data.length > 0) {
         router.push(`/recruitment/interviews/${interviews.data[0].interviewId}`);
       } else {
-        Alert.alert('Info', 'No interview scheduled for this application');
+        Alert.alert(tCommon('info'), t('noInterviewScheduled'));
       }
     } catch (error) {
       console.error('Error fetching interview:', error);
-      Alert.alert('Error', 'Failed to load interview');
+      Alert.alert(tCommon('error'), t('failedToLoadInterview'));
     }
   };
 
   const getStatusColor = (status?: string) => {
-    if (!status) return '#6b7280';
+    if (!status) return colors.textSecondary;
     switch (status.toLowerCase()) {
       case 'hired':
-        return '#10b981';
+        return colors.success;
       case 'offer':
-        return '#3b82f6';
+      case 'offered':
+        return colors.primary;
       case 'interviewing':
-        return '#8b5cf6';
+        return colors.purple;
       case 'screening':
       case 'screening_passed':
-        return '#f59e0b';
+        return colors.warning;
       case 'rejected':
       case 'screening_failed':
-        return '#ef4444';
+        return colors.error;
       case 'submitted':
-        return '#6b7280';
+        return colors.textSecondary;
       default:
-        return '#6b7280';
+        return colors.textSecondary;
     }
   };
 
   const getStatusLabel = (status?: string) => {
-    if (!status) return 'N/A';
-    return status
-      .split('_')
-      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-      .join(' ');
+    if (!status) return tCommon('nA');
+    return t(`status.${status.toLowerCase()}`);
   };
 
   const formatDate = (dateString?: string) => {
@@ -164,10 +169,10 @@ export default function ApplicationDetailScreen() {
 
   if (loading) {
     return (
-      <View className="flex-1 bg-gray-50" style={{ paddingTop: insets.top }}>
+      <View className="flex-1" style={{ backgroundColor: colors.background, paddingTop: insets.top }}>
         <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color="#2563eb" />
-          <Text className="text-gray-500 mt-4">Loading application details...</Text>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text className="mt-4" style={{ color: colors.textSecondary }}>{t('loadingApplicationDetails')}</Text>
         </View>
       </View>
     );
@@ -175,17 +180,18 @@ export default function ApplicationDetailScreen() {
 
   if (!application) {
     return (
-      <View className="flex-1 bg-gray-50" style={{ paddingTop: insets.top }}>
+      <View className="flex-1" style={{ backgroundColor: colors.background, paddingTop: insets.top }}>
         <View className="flex-1 items-center justify-center px-4">
-          <Ionicons name="alert-circle-outline" size={64} color="#9ca3af" />
-          <Text className="text-lg font-semibold text-gray-500 mt-4">
-            Application not found
+          <Ionicons name="alert-circle-outline" size={64} color={colors.textTertiary} />
+          <Text className="text-lg font-semibold mt-4" style={{ color: colors.textSecondary }}>
+            {t('applicationNotFound')}
           </Text>
           <TouchableOpacity
             onPress={() => router.back()}
-            className="mt-4 bg-blue-600 px-6 py-3 rounded-lg"
+            className="mt-4 px-6 py-3 rounded-lg"
+            style={{ backgroundColor: colors.primary }}
           >
-            <Text className="text-white font-semibold">Go Back</Text>
+            <Text className="text-white font-semibold">{tCommon('back')}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -193,20 +199,20 @@ export default function ApplicationDetailScreen() {
   }
 
   return (
-    <View className="flex-1 bg-gray-50" style={{ paddingTop: insets.top }}>
+    <View className="flex-1" style={{ backgroundColor: colors.background, paddingTop: insets.top }}>
       {/* Header */}
-      <View className="bg-white border-b border-gray-200 px-4 py-3">
+      <View className="px-4 py-3 border-b" style={{ backgroundColor: colors.surface, borderBottomColor: colors.border }}>
         <View className="flex-row items-center justify-between mb-3">
           <TouchableOpacity onPress={() => router.back()} className="mr-3">
-            <Ionicons name="arrow-back" size={24} color="#111827" />
+            <Ionicons name="arrow-back" size={24} color={colors.text} />
           </TouchableOpacity>
           <View className="flex-1">
-            <Text className="text-xl font-bold text-gray-900">
-              Application #{application.applicationId}
+            <Text className="text-xl font-bold" style={{ color: colors.text }}>
+              {t('application')} #{application.applicationId}
             </Text>
             <View className="flex-row items-center mt-1">
               <View
-                className={`px-2 py-1 rounded-full`}
+                className="px-2 py-1 rounded-full"
                 style={{ backgroundColor: `${getStatusColor(application.applicationStatus)}20` }}
               >
                 <Text
@@ -221,31 +227,31 @@ export default function ApplicationDetailScreen() {
         </View>
       </View>
 
-      <ScrollView className="flex-1" contentContainerStyle={{ padding: 16 }}>
+      <ScrollView className="flex-1" contentContainerStyle={{ padding: 16 }} style={{ backgroundColor: colors.background }}>
         {/* Candidate Information */}
         {candidate && (
-          <View className="bg-white rounded-lg p-4 mb-4 border border-gray-200">
-            <Text className="text-lg font-bold text-gray-900 mb-3">Candidate</Text>
+          <View className="rounded-lg p-4 mb-4 border" style={{ backgroundColor: colors.card, borderColor: colors.border }}>
+            <Text className="text-lg font-bold mb-3" style={{ color: colors.text }}>{t('candidate')}</Text>
             
             <View className="flex-row items-center mb-2">
-              <Ionicons name="person-outline" size={18} color="#6b7280" />
-              <Text className="text-sm text-gray-600 ml-2 flex-1">Name</Text>
-              <Text className="text-sm font-semibold text-gray-900">
+              <Ionicons name="person-outline" size={18} color={colors.textSecondary} />
+              <Text className="text-sm ml-2 flex-1" style={{ color: colors.textSecondary }}>{tCommon('name')}</Text>
+              <Text className="text-sm font-semibold" style={{ color: colors.text }}>
                 {candidate.firstName} {candidate.lastName}
               </Text>
             </View>
 
             <View className="flex-row items-center mb-2">
-              <Ionicons name="mail-outline" size={18} color="#6b7280" />
-              <Text className="text-sm text-gray-600 ml-2 flex-1">Email</Text>
-              <Text className="text-sm font-semibold text-gray-900">{candidate.email}</Text>
+              <Ionicons name="mail-outline" size={18} color={colors.textSecondary} />
+              <Text className="text-sm ml-2 flex-1" style={{ color: colors.textSecondary }}>{tCommon('email')}</Text>
+              <Text className="text-sm font-semibold" style={{ color: colors.text }}>{candidate.email}</Text>
             </View>
 
             {candidate.phoneNumber && (
               <View className="flex-row items-center mb-2">
-                <Ionicons name="call-outline" size={18} color="#6b7280" />
-                <Text className="text-sm text-gray-600 ml-2 flex-1">Phone</Text>
-                <Text className="text-sm font-semibold text-gray-900">
+                <Ionicons name="call-outline" size={18} color={colors.textSecondary} />
+                <Text className="text-sm ml-2 flex-1" style={{ color: colors.textSecondary }}>{t('phone')}</Text>
+                <Text className="text-sm font-semibold" style={{ color: colors.text }}>
                   {candidate.phoneNumber}
                 </Text>
               </View>
@@ -253,20 +259,21 @@ export default function ApplicationDetailScreen() {
 
             <TouchableOpacity
               onPress={handleViewCandidate}
-              className="flex-row items-center mt-3 pt-3 border-t border-gray-200"
+              className="flex-row items-center mt-3 pt-3 border-t"
+              style={{ borderTopColor: colors.border }}
             >
-              <Text className="text-sm text-blue-600 flex-1">View Candidate Profile</Text>
-              <Ionicons name="chevron-forward" size={16} color="#2563eb" />
+              <Text className="text-sm flex-1" style={{ color: colors.primary }}>{t('viewCandidateProfile')}</Text>
+              <Ionicons name="chevron-forward" size={16} color={colors.primary} />
             </TouchableOpacity>
           </View>
         )}
 
         {/* Job Information */}
         {application.jobPosting && (
-          <View className="bg-white rounded-lg p-4 mb-4 border border-gray-200">
-            <Text className="text-lg font-bold text-gray-900 mb-3">Job Position</Text>
+          <View className="rounded-lg p-4 mb-4 border" style={{ backgroundColor: colors.card, borderColor: colors.border }}>
+            <Text className="text-lg font-bold mb-3" style={{ color: colors.text }}>{t('jobPosition')}</Text>
             
-            <Text className="text-base font-semibold text-gray-900 mb-2">
+            <Text className="text-base font-semibold mb-2" style={{ color: colors.text }}>
               {application.jobPosting.title}
             </Text>
 
@@ -274,36 +281,36 @@ export default function ApplicationDetailScreen() {
               onPress={handleViewJob}
               className="flex-row items-center mt-2"
             >
-              <Text className="text-sm text-blue-600">View Job Details</Text>
-              <Ionicons name="chevron-forward" size={16} color="#2563eb" />
+              <Text className="text-sm" style={{ color: colors.primary }}>{t('viewJobDetails')}</Text>
+              <Ionicons name="chevron-forward" size={16} color={colors.primary} />
             </TouchableOpacity>
           </View>
         )}
 
         {/* Application Details */}
-        <View className="bg-white rounded-lg p-4 mb-4 border border-gray-200">
-          <Text className="text-lg font-bold text-gray-900 mb-3">Application Details</Text>
+        <View className="rounded-lg p-4 mb-4 border" style={{ backgroundColor: colors.card, borderColor: colors.border }}>
+          <Text className="text-lg font-bold mb-3" style={{ color: colors.text }}>{t('applicationDetails')}</Text>
           
           <View className="flex-row justify-between mb-2">
-            <Text className="text-sm text-gray-600">Applied Date</Text>
-            <Text className="text-sm font-semibold text-gray-900">
+            <Text className="text-sm" style={{ color: colors.textSecondary }}>{t('appliedDate')}</Text>
+            <Text className="text-sm font-semibold" style={{ color: colors.text }}>
               {formatDate(application.appliedAt)}
             </Text>
           </View>
 
           <View className="flex-row justify-between mb-2">
-            <Text className="text-sm text-gray-600">Last Updated</Text>
-            <Text className="text-sm font-semibold text-gray-900">
+            <Text className="text-sm" style={{ color: colors.textSecondary }}>{t('lastUpdated')}</Text>
+            <Text className="text-sm font-semibold" style={{ color: colors.text }}>
               {formatDate(application.updatedAt)}
             </Text>
           </View>
 
           {application.score !== undefined && application.score !== null && (
             <View className="flex-row justify-between mb-2">
-              <Text className="text-sm text-gray-600">Score</Text>
+              <Text className="text-sm" style={{ color: colors.textSecondary }}>{t('score')}</Text>
               <View className="flex-row items-center">
-                <Ionicons name="star" size={14} color="#f59e0b" />
-                <Text className="text-sm font-semibold text-gray-900 ml-1">
+                <Ionicons name="star" size={14} color={colors.warning} />
+                <Text className="text-sm font-semibold ml-1" style={{ color: colors.text }}>
                   {application.score.toFixed(1)}
                 </Text>
               </View>
@@ -313,9 +320,9 @@ export default function ApplicationDetailScreen() {
 
         {/* Cover Letter */}
         {application.coverLetter && (
-          <View className="bg-white rounded-lg p-4 mb-4 border border-gray-200">
-            <Text className="text-lg font-bold text-gray-900 mb-3">Cover Letter</Text>
-            <Text className="text-sm text-gray-700 leading-6">{application.coverLetter}</Text>
+          <View className="rounded-lg p-4 mb-4 border" style={{ backgroundColor: colors.card, borderColor: colors.border }}>
+            <Text className="text-lg font-bold mb-3" style={{ color: colors.text }}>{t('coverLetter')}</Text>
+            <Text className="text-sm leading-6" style={{ color: colors.text }}>{application.coverLetter}</Text>
           </View>
         )}
 
@@ -323,11 +330,12 @@ export default function ApplicationDetailScreen() {
         <View className="space-y-3 mb-6">
           <TouchableOpacity
             onPress={handleViewInterview}
-            className="bg-blue-600 px-6 py-4 rounded-lg"
+            className="px-6 py-4 rounded-lg"
+            style={{ backgroundColor: colors.primary }}
           >
             <View className="flex-row items-center justify-center">
               <Ionicons name="calendar-outline" size={20} color="white" />
-              <Text className="text-white font-semibold ml-2">View Interview</Text>
+              <Text className="text-white font-semibold ml-2">{t('viewInterview')}</Text>
             </View>
           </TouchableOpacity>
 
@@ -335,21 +343,23 @@ export default function ApplicationDetailScreen() {
             <>
               <TouchableOpacity
                 onPress={handleApprove}
-                className="bg-green-600 px-6 py-4 rounded-lg"
+                className="px-6 py-4 rounded-lg"
+                style={{ backgroundColor: colors.success }}
               >
                 <View className="flex-row items-center justify-center">
                   <Ionicons name="checkmark-circle-outline" size={20} color="white" />
-                  <Text className="text-white font-semibold ml-2">Approve & Make Offer</Text>
+                  <Text className="text-white font-semibold ml-2">{t('approveMakeOffer')}</Text>
                 </View>
               </TouchableOpacity>
 
               <TouchableOpacity
                 onPress={handleReject}
-                className="bg-red-600 px-6 py-4 rounded-lg"
+                className="px-6 py-4 rounded-lg"
+                style={{ backgroundColor: colors.error }}
               >
                 <View className="flex-row items-center justify-center">
                   <Ionicons name="close-circle-outline" size={20} color="white" />
-                  <Text className="text-white font-semibold ml-2">Reject Application</Text>
+                  <Text className="text-white font-semibold ml-2">{t('rejectApplication')}</Text>
                 </View>
               </TouchableOpacity>
             </>

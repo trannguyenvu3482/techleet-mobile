@@ -1,17 +1,20 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import { JobPosting, recruitmentAPI } from "@/services/api/recruitment";
+import { Ionicons } from "@expo/vector-icons";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { useTranslation } from "react-i18next";
+import React, { useCallback, useEffect, useState } from "react";
 import {
-  View,
-  Text,
-  FlatList,
-  TouchableOpacity,
   ActivityIndicator,
-  RefreshControl,
   Alert,
-} from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { useRouter, useLocalSearchParams } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { recruitmentAPI, JobPosting } from '@/services/api/recruitment';
+  FlatList,
+  RefreshControl,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useThemeStore } from "@/store/theme-store";
+import { getColors } from "@/theme/colors";
 
 interface Application {
   applicationId: number;
@@ -28,21 +31,25 @@ export default function JobApplicationsScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ id: string }>();
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation("recruitment");
+  const { t: tCommon } = useTranslation("common");
+  const { isDark } = useThemeStore();
+  const colors = getColors(isDark);
   const [job, setJob] = useState<JobPosting | null>(null);
   const [applications, setApplications] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState<string>("all");
 
   const fetchJob = useCallback(async (jobId: number) => {
     try {
       const jobData = await recruitmentAPI.getJobPostingById(jobId);
       setJob(jobData);
     } catch (error) {
-      console.error('Error fetching job:', error);
-      Alert.alert('Error', 'Failed to load job details');
+      console.error("Error fetching job:", error);
+      Alert.alert(tCommon("error"), t("failedToLoadJobDetails"));
     }
-  }, []);
+  }, [t, tCommon]);
 
   const fetchApplications = useCallback(async (jobId: number) => {
     try {
@@ -50,13 +57,13 @@ export default function JobApplicationsScreen() {
       const response = await recruitmentAPI.getApplicationsByJobId(jobId);
       setApplications(response.data);
     } catch (error) {
-      console.error('Error fetching applications:', error);
-      Alert.alert('Error', 'Failed to load applications');
+      console.error("Error fetching applications:", error);
+      Alert.alert(tCommon("error"), t("failedToLoadApplications"));
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [t, tCommon]);
 
   useEffect(() => {
     if (params.id) {
@@ -78,56 +85,57 @@ export default function JobApplicationsScreen() {
 
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
-      case 'hired':
-        return '#10b981';
-      case 'offer':
-        return '#3b82f6';
-      case 'interviewing':
-        return '#8b5cf6';
-      case 'screening':
-        return '#f59e0b';
-      case 'rejected':
-        return '#ef4444';
+      case "hired":
+        return colors.success;
+      case "offer":
+      case "offered":
+        return colors.primary;
+      case "interviewing":
+        return colors.purple;
+      case "screening":
+      case "screening_passed":
+        return colors.warning;
+      case "rejected":
+      case "screening_failed":
+        return colors.error;
       default:
-        return '#6b7280';
+        return colors.textSecondary;
     }
   };
 
   const getStatusLabel = (status: string) => {
-    return status
-      .split('_')
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-      .join(' ');
+    return t(`status.${status.toLowerCase()}`);
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
+    return new Date(dateString).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
     });
   };
 
-  const filteredApplications = applications.filter(app => {
-    if (statusFilter === 'all') return true;
+  const filteredApplications = applications.filter((app) => {
+    if (statusFilter === "all") return true;
     return app.status.toLowerCase() === statusFilter.toLowerCase();
   });
 
   const renderApplicationItem = ({ item }: { item: Application }) => (
     <TouchableOpacity
       onPress={() => handleApplicationPress(item)}
-      className="bg-white rounded-lg p-4 mb-3 border border-gray-200 shadow-sm"
+      className="rounded-lg p-4 mb-3 border shadow-sm"
+      style={{ backgroundColor: colors.card, borderColor: colors.border }}
       activeOpacity={0.7}
     >
       <View className="flex-row justify-between items-start mb-2">
         <View className="flex-1">
-          <Text className="text-base font-bold text-gray-900 mb-1">
+          <Text className="text-base font-bold mb-1" style={{ color: colors.text }}>
             {item.firstName} {item.lastName}
           </Text>
-          <Text className="text-sm text-gray-600 mb-2">{item.email}</Text>
+          <Text className="text-sm mb-2" style={{ color: colors.textSecondary }}>{item.email}</Text>
         </View>
         <View
-          className={`px-3 py-1 rounded-full ml-2`}
+          className="px-3 py-1 rounded-full ml-2"
           style={{ backgroundColor: `${getStatusColor(item.status)}20` }}
         >
           <Text
@@ -141,16 +149,16 @@ export default function JobApplicationsScreen() {
 
       <View className="flex-row items-center justify-between">
         <View className="flex-row items-center">
-          <Ionicons name="calendar-outline" size={14} color="#6b7280" />
-          <Text className="text-xs text-gray-600 ml-1">
-            Applied {formatDate(item.createdAt)}
+          <Ionicons name="calendar-outline" size={14} color={colors.textSecondary} />
+          <Text className="text-xs ml-1" style={{ color: colors.textSecondary }}>
+            {t("applied")} {formatDate(item.createdAt)}
           </Text>
         </View>
         {item.score !== null && (
           <View className="flex-row items-center">
-            <Ionicons name="star-outline" size={14} color="#f59e0b" />
-            <Text className="text-xs font-semibold text-gray-700 ml-1">
-              Score: {item.score.toFixed(1)}
+            <Ionicons name="star-outline" size={14} color={colors.warning} />
+            <Text className="text-xs font-semibold ml-1" style={{ color: colors.text }}>
+              {t("score")}: {item.score.toFixed(1)}
             </Text>
           </View>
         )}
@@ -160,45 +168,48 @@ export default function JobApplicationsScreen() {
 
   const renderEmpty = () => (
     <View className="items-center justify-center py-12">
-      <Ionicons name="document-text-outline" size={64} color="#d1d5db" />
-      <Text className="text-lg font-semibold text-gray-500 mt-4">
-        No applications found
+      <Ionicons name="document-text-outline" size={64} color={colors.textTertiary} />
+      <Text className="text-lg font-semibold mt-4" style={{ color: colors.textSecondary }}>
+        {t("noApplicationsFound")}
       </Text>
-      <Text className="text-gray-400 mt-2">
-        {statusFilter === 'all'
-          ? 'This job posting has no applications yet'
-          : `No applications with status: ${statusFilter}`}
+      <Text className="mt-2" style={{ color: colors.textTertiary }}>
+        {statusFilter === "all"
+          ? t("noApplicationsForJob")
+          : t("noApplicationsWithStatus", { status: getStatusLabel(statusFilter) })}
       </Text>
     </View>
   );
 
   if (loading) {
     return (
-      <View className="flex-1 bg-gray-50" style={{ paddingTop: insets.top }}>
+      <View className="flex-1" style={{ backgroundColor: colors.background, paddingTop: insets.top }}>
         <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color="#2563eb" />
-          <Text className="text-gray-500 mt-4">Loading applications...</Text>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text className="mt-4" style={{ color: colors.textSecondary }}>{t("loadingApplications")}</Text>
         </View>
       </View>
     );
   }
 
-  const uniqueStatuses = Array.from(new Set(applications.map(app => app.status.toLowerCase())));
+  const uniqueStatuses = Array.from(
+    new Set(applications.map((app) => app.status.toLowerCase()))
+  );
 
   return (
-    <View className="flex-1 bg-gray-50" style={{ paddingTop: insets.top }}>
+    <View className="flex-1" style={{ backgroundColor: colors.background, paddingTop: insets.top }}>
       {/* Header */}
-      <View className="bg-white border-b border-gray-200 px-4 py-3">
+      <View className="px-4 py-3 border-b" style={{ backgroundColor: colors.surface, borderBottomColor: colors.border }}>
         <View className="flex-row items-center justify-between mb-3">
           <TouchableOpacity onPress={() => router.back()} className="mr-3">
-            <Ionicons name="arrow-back" size={24} color="#111827" />
+            <Ionicons name="arrow-back" size={24} color={colors.text} />
           </TouchableOpacity>
           <View className="flex-1">
-            <Text className="text-xl font-bold text-gray-900" numberOfLines={1}>
-              {job?.title || 'Applications'}
+            <Text className="text-xl font-bold" style={{ color: colors.text }} numberOfLines={1}>
+              {job?.title || t("applications")}
             </Text>
-            <Text className="text-sm text-gray-600">
-              {filteredApplications.length} application{filteredApplications.length !== 1 ? 's' : ''}
+            <Text className="text-sm" style={{ color: colors.textSecondary }}>
+              {filteredApplications.length} {t("application")}
+              {filteredApplications.length !== 1 ? "s" : ""}
             </Text>
           </View>
         </View>
@@ -207,31 +218,27 @@ export default function JobApplicationsScreen() {
         {uniqueStatuses.length > 0 && (
           <View className="flex-row gap-2 flex-wrap">
             <TouchableOpacity
-              onPress={() => setStatusFilter('all')}
-              className={`px-3 py-2 rounded-lg ${
-                statusFilter === 'all' ? 'bg-blue-600' : 'bg-gray-100'
-              }`}
+              onPress={() => setStatusFilter("all")}
+              className="px-3 py-2 rounded-lg"
+              style={{ backgroundColor: statusFilter === "all" ? colors.primary : colors.surface }}
             >
               <Text
-                className={`text-xs font-semibold ${
-                  statusFilter === 'all' ? 'text-white' : 'text-gray-600'
-                }`}
+                className="text-xs font-semibold"
+                style={{ color: statusFilter === "all" ? "white" : colors.text }}
               >
-                All
+                {tCommon("all")}
               </Text>
             </TouchableOpacity>
             {uniqueStatuses.map((status) => (
               <TouchableOpacity
                 key={status}
                 onPress={() => setStatusFilter(status)}
-                className={`px-3 py-2 rounded-lg ${
-                  statusFilter === status ? 'bg-blue-600' : 'bg-gray-100'
-                }`}
+                className="px-3 py-2 rounded-lg"
+                style={{ backgroundColor: statusFilter === status ? colors.primary : colors.surface }}
               >
                 <Text
-                  className={`text-xs font-semibold ${
-                    statusFilter === status ? 'text-white' : 'text-gray-600'
-                  }`}
+                  className="text-xs font-semibold"
+                  style={{ color: statusFilter === status ? "white" : colors.text }}
                 >
                   {getStatusLabel(status)}
                 </Text>
@@ -255,4 +262,3 @@ export default function JobApplicationsScreen() {
     </View>
   );
 }
-

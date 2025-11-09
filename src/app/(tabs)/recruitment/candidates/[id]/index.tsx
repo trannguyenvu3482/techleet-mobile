@@ -1,86 +1,114 @@
-import React, { useState, useEffect, useCallback } from 'react';
 import {
-  View,
-  Text,
-  ScrollView,
-  TouchableOpacity,
+  Application,
+  Candidate,
+  CandidateFile,
+  recruitmentAPI,
+} from "@/services/api/recruitment";
+import { useThemeStore } from "@/store/theme-store";
+import { getColors } from "@/theme/colors";
+import { shareService } from "@/utils/share";
+import { Ionicons } from "@expo/vector-icons";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import React, { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
+import {
   ActivityIndicator,
   Alert,
   Linking,
-} from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { useRouter, useLocalSearchParams } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { recruitmentAPI, Candidate, Application, CandidateFile } from '@/services/api/recruitment';
-import { shareService } from '@/utils/share';
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function CandidateDetailScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ id: string }>();
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation("recruitment");
+  const { t: tCommon } = useTranslation("common");
+  const { isDark } = useThemeStore();
+  const colors = getColors(isDark);
   const [candidate, setCandidate] = useState<Candidate | null>(null);
   const [applications, setApplications] = useState<Application[]>([]);
   const [files, setFiles] = useState<CandidateFile[]>([]);
   const [loading, setLoading] = useState(true);
   const [screeningScore, setScreeningScore] = useState<number | null>(null);
 
-  const fetchCandidate = useCallback(async (candidateId: number) => {
-    try {
-      setLoading(true);
-      console.log('Fetching candidate with ID:', candidateId);
-      const candidateData = await recruitmentAPI.getCandidateById(candidateId);
-      console.log('Candidate data received:', JSON.stringify(candidateData, null, 2));
-      
-      if (!candidateData || (typeof candidateData === 'object' && Object.keys(candidateData).length === 0)) {
-        console.error('Candidate data is null, undefined, or empty');
-        throw new Error('Candidate not found');
-      }
-      
-      // Check if candidateData has required fields
-      if (!candidateData.candidateId && !candidateData.email) {
-        console.error('Candidate data missing required fields:', candidateData);
-        throw new Error('Invalid candidate data received');
-      }
-      
-      setCandidate(candidateData);
-
-      // Fetch applications for this candidate
+  const fetchCandidate = useCallback(
+    async (candidateId: number) => {
       try {
-        const appsResponse = await recruitmentAPI.getApplications({
-          candidateId: candidateId,
-          limit: 100,
-        });
-        setApplications(appsResponse.data);
+        setLoading(true);
+        console.log("Fetching candidate with ID:", candidateId);
+        const candidateData =
+          await recruitmentAPI.getCandidateById(candidateId);
+        console.log(
+          "Candidate data received:",
+          JSON.stringify(candidateData, null, 2)
+        );
 
-        // Get screening score from most recent application
-        if (appsResponse.data.length > 0) {
-          const latestApp = appsResponse.data[0];
-          if (latestApp.score !== undefined && latestApp.score !== null) {
-            setScreeningScore(latestApp.score);
+        if (
+          !candidateData ||
+          (typeof candidateData === "object" &&
+            Object.keys(candidateData).length === 0)
+        ) {
+          console.error("Candidate data is null, undefined, or empty");
+          throw new Error("Candidate not found");
+        }
+
+        // Check if candidateData has required fields
+        if (!candidateData.candidateId && !candidateData.email) {
+          console.error(
+            "Candidate data missing required fields:",
+            candidateData
+          );
+          throw new Error("Invalid candidate data received");
+        }
+
+        setCandidate(candidateData);
+
+        // Fetch applications for this candidate
+        try {
+          const appsResponse = await recruitmentAPI.getApplications({
+            candidateId: candidateId,
+            limit: 100,
+          });
+          setApplications(appsResponse.data);
+
+          // Get screening score from most recent application
+          if (appsResponse.data.length > 0) {
+            const latestApp = appsResponse.data[0];
+            if (latestApp.score !== undefined && latestApp.score !== null) {
+              setScreeningScore(latestApp.score);
+            }
           }
+        } catch (error) {
+          console.error("Error fetching applications:", error);
+        }
+
+        // Fetch candidate files
+        try {
+          const filesData = await recruitmentAPI.getCandidateFiles(candidateId);
+          setFiles(filesData);
+        } catch (error) {
+          console.error("Error fetching files:", error);
         }
       } catch (error) {
-        console.error('Error fetching applications:', error);
+        console.error("Error fetching candidate:", error);
+        const errorMessage =
+          error instanceof Error
+            ? error.message
+            : t("failedToLoadCandidateDetails");
+        setLoading(false);
+        setCandidate(null);
+        Alert.alert(tCommon("error"), errorMessage);
+      } finally {
+        setLoading(false);
       }
-
-      // Fetch candidate files
-      try {
-        const filesData = await recruitmentAPI.getCandidateFiles(candidateId);
-        setFiles(filesData);
-      } catch (error) {
-        console.error('Error fetching files:', error);
-      }
-    } catch (error) {
-      console.error('Error fetching candidate:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Failed to load candidate details';
-      setLoading(false);
-      setCandidate(null); // Ensure candidate is null on error
-      // Don't navigate back automatically, let user see the error
-      Alert.alert('Error', errorMessage);
-    } finally {
-      setLoading(false);
-    }
-  }, [router]);
+    },
+    [t, tCommon]
+  );
 
   useEffect(() => {
     // Check if params.id is valid
@@ -91,12 +119,12 @@ export default function CandidateDetailScreen() {
     }
 
     // Check if params.id is 'index' - this means we're on the wrong route
-    if (params.id === 'index') {
+    if (params.id === "index") {
       setLoading(false);
       setCandidate(null);
       // Navigate back to candidates list
       setTimeout(() => {
-        router.replace('/recruitment/candidates');
+        router.replace("/recruitment/candidates");
       }, 100);
       return;
     }
@@ -105,31 +133,38 @@ export default function CandidateDetailScreen() {
     if (isNaN(candidateId) || candidateId <= 0) {
       setLoading(false);
       setCandidate(null);
-      Alert.alert('Error', `Invalid candidate ID: ${params.id}`, [
-        { text: 'OK', onPress: () => router.back() },
-      ]);
+      Alert.alert(
+        tCommon("error"),
+        t("invalidCandidateId", { id: params.id }),
+        [{ text: tCommon("ok"), onPress: () => router.back() }]
+      );
       return;
     }
 
     fetchCandidate(candidateId);
-  }, [params.id, fetchCandidate, router]);
+  }, [params.id, fetchCandidate, router, t, tCommon]);
 
   const handleViewExams = () => {
-    // Need applicationId to view exams - use first application if available
     if (applications.length > 0) {
-      router.push(`/recruitment/candidates/${params.id}/exams?applicationId=${applications[0].applicationId}`);
+      router.push(
+        `/recruitment/candidates/${params.id}/exams?applicationId=${applications[0].applicationId}`
+      );
     } else {
-      Alert.alert('Info', 'No applications found for this candidate');
+      Alert.alert(tCommon("info"), t("noApplicationsFound"));
     }
   };
 
   const handleScheduleInterview = (application?: Application) => {
     if (application && application.applicationId) {
-      router.push(`/recruitment/interviews/form?applicationId=${application.applicationId}`);
+      router.push(
+        `/recruitment/interviews/form?applicationId=${application.applicationId}`
+      );
     } else if (applications.length > 0) {
-      router.push(`/recruitment/interviews/form?applicationId=${applications[0].applicationId}`);
+      router.push(
+        `/recruitment/interviews/form?applicationId=${applications[0].applicationId}`
+      );
     } else {
-      Alert.alert('Info', 'No applications found for this candidate');
+      Alert.alert(tCommon("info"), t("noApplicationsFound"));
     }
   };
 
@@ -139,76 +174,103 @@ export default function CandidateDetailScreen() {
   };
 
   const handleOpenUrl = (url: string) => {
-    if (url && (url.startsWith('http://') || url.startsWith('https://'))) {
+    if (url && (url.startsWith("http://") || url.startsWith("https://"))) {
       Linking.openURL(url).catch((err) => {
-        console.error('Error opening URL:', err);
-        Alert.alert('Error', 'Failed to open URL');
+        console.error("Error opening URL:", err);
+        Alert.alert(tCommon("error"), t("failedToOpenUrl"));
       });
     }
   };
 
+  const handleDownloadFile = (file: CandidateFile) => {
+    if (file.fileUrl) {
+      handleOpenUrl(file.fileUrl);
+    }
+  };
+
   const formatDate = (dateString?: string) => {
-    if (!dateString) return 'N/A';
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
+    if (!dateString) return tCommon("nA");
+    return new Date(dateString).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
     });
   };
 
   const getStatusColor = (status?: string) => {
-    if (!status) return '#6b7280';
+    if (!status) return colors.textSecondary;
     switch (status.toLowerCase()) {
-      case 'hired':
-        return '#10b981';
-      case 'offer':
-        return '#3b82f6';
-      case 'interviewing':
-        return '#8b5cf6';
-      case 'screening':
-        return '#f59e0b';
-      case 'rejected':
-        return '#ef4444';
+      case "hired":
+        return colors.success;
+      case "offer":
+      case "offered":
+        return colors.primary;
+      case "interviewing":
+        return colors.purple;
+      case "screening":
+      case "screening_passed":
+        return colors.warning;
+      case "rejected":
+      case "screening_failed":
+        return colors.error;
       default:
-        return '#6b7280';
+        return colors.textSecondary;
     }
   };
 
   const getStatusLabel = (status?: string) => {
-    if (!status) return 'N/A';
-    return status
-      .split('_')
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-      .join(' ');
+    if (!status) return tCommon("nA");
+    return t(`status.${status.toLowerCase()}`);
   };
 
   if (loading) {
     return (
-      <View className="flex-1 bg-gray-50" style={{ paddingTop: insets.top }}>
+      <View
+        className="flex-1"
+        style={{ backgroundColor: colors.background, paddingTop: insets.top }}
+      >
         <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color="#2563eb" />
-          <Text className="text-gray-500 mt-4">Loading candidate details...</Text>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text className="mt-4" style={{ color: colors.textSecondary }}>
+            {t("loadingCandidateDetails")}
+          </Text>
         </View>
       </View>
     );
   }
 
-  if (!candidate && !loading) {
+  if (!candidate) {
     return (
-      <View className="flex-1 bg-gray-50" style={{ paddingTop: insets.top }}>
+      <View
+        className="flex-1"
+        style={{ backgroundColor: colors.background, paddingTop: insets.top }}
+      >
         <View className="flex-1 items-center justify-center px-4">
-          <Ionicons name="alert-circle-outline" size={64} color="#9ca3af" />
-          <Text className="text-lg font-semibold text-gray-500 mt-4">
-            Candidate not found
+          <Ionicons
+            name="alert-circle-outline"
+            size={64}
+            color={colors.textTertiary}
+          />
+          <Text
+            className="text-lg font-semibold mt-4"
+            style={{ color: colors.textSecondary }}
+          >
+            {t("candidateNotFound")}
           </Text>
-          <Text className="text-sm text-gray-400 mt-2 text-center">
-            {params.id ? `ID: ${params.id}` : 'No candidate ID provided'}
+          <Text
+            className="text-sm mt-2 text-center"
+            style={{ color: colors.textTertiary }}
+          >
+            {params.id
+              ? `${t("id")}: ${params.id}`
+              : t("noCandidateIdProvided")}
           </Text>
           <TouchableOpacity
             onPress={() => router.back()}
-            className="mt-4 bg-blue-600 px-6 py-3 rounded-lg"
+            className="mt-4 px-6 py-3 rounded-lg"
+            style={{ backgroundColor: colors.primary }}
           >
-            <Text className="text-white font-semibold">Go Back</Text>
+            <Text className="text-white font-semibold">{tCommon("back")}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -218,28 +280,51 @@ export default function CandidateDetailScreen() {
   const fullName = `${candidate.firstName} ${candidate.lastName}`;
 
   return (
-    <View className="flex-1 bg-gray-50" style={{ paddingTop: insets.top }}>
+    <View
+      className="flex-1"
+      style={{ backgroundColor: colors.background, paddingTop: insets.top }}
+    >
       {/* Header */}
-      <View className="bg-white border-b border-gray-200 px-4 py-3">
+      <View
+        className="px-4 py-3 border-b"
+        style={{
+          backgroundColor: colors.surface,
+          borderBottomColor: colors.border,
+        }}
+      >
         <View className="flex-row items-center justify-between mb-3">
           <TouchableOpacity onPress={() => router.back()} className="mr-3">
-            <Ionicons name="arrow-back" size={24} color="#111827" />
+            <Ionicons name="arrow-back" size={24} color={colors.text} />
           </TouchableOpacity>
           <View className="flex-1">
-            <Text className="text-xl font-bold text-gray-900" numberOfLines={1}>
+            <Text
+              className="text-xl font-bold"
+              style={{ color: colors.text }}
+              numberOfLines={1}
+            >
               {fullName}
             </Text>
-            <Text className="text-sm text-gray-600">{candidate.email}</Text>
+            <Text className="text-sm" style={{ color: colors.textSecondary }}>
+              {candidate.email}
+            </Text>
           </View>
           <View className="flex-row gap-2">
             <TouchableOpacity onPress={handleShare} className="p-2">
-              <Ionicons name="share-outline" size={24} color="#2563eb" />
+              <Ionicons name="share-outline" size={24} color={colors.primary} />
             </TouchableOpacity>
             <TouchableOpacity
-              onPress={() => router.push(`/recruitment/candidates/form?id=${candidate.candidateId}`)}
+              onPress={() =>
+                router.push(
+                  `/recruitment/candidates/form?id=${candidate.candidateId}`
+                )
+              }
               className="p-2"
             >
-              <Ionicons name="create-outline" size={24} color="#2563eb" />
+              <Ionicons
+                name="create-outline"
+                size={24}
+                color={colors.primary}
+              />
             </TouchableOpacity>
           </View>
         </View>
@@ -248,47 +333,105 @@ export default function CandidateDetailScreen() {
         <View className="flex-row gap-2">
           <TouchableOpacity
             onPress={handleViewExams}
-            className="flex-1 bg-blue-600 px-4 py-2 rounded-lg flex-row items-center justify-center"
+            className="flex-1 px-4 py-2 rounded-lg flex-row items-center justify-center"
+            style={{ backgroundColor: colors.primary }}
           >
             <Ionicons name="document-text-outline" size={18} color="white" />
-            <Text className="text-white font-semibold ml-2">View Exams</Text>
+            <Text className="text-white font-semibold ml-2">
+              {t("viewExams")}
+            </Text>
           </TouchableOpacity>
           {applications.length > 0 && (
             <TouchableOpacity
               onPress={() => handleScheduleInterview()}
-              className="flex-1 bg-green-600 px-4 py-2 rounded-lg flex-row items-center justify-center"
+              className="flex-1 px-4 py-2 rounded-lg flex-row items-center justify-center"
+              style={{ backgroundColor: colors.success }}
             >
               <Ionicons name="calendar-outline" size={18} color="white" />
-              <Text className="text-white font-semibold ml-2">Schedule</Text>
+              <Text className="text-white font-semibold ml-2">
+                {t("schedule")}
+              </Text>
             </TouchableOpacity>
           )}
         </View>
       </View>
 
-      <ScrollView className="flex-1" contentContainerStyle={{ padding: 16 }}>
+      <ScrollView
+        className="flex-1"
+        contentContainerStyle={{ padding: 16 }}
+        style={{ backgroundColor: colors.background }}
+      >
         {/* Contact Information */}
-        <View className="bg-white rounded-lg p-4 mb-4 border border-gray-200">
-          <Text className="text-lg font-bold text-gray-900 mb-3">Contact Information</Text>
-          
+        <View
+          className="rounded-lg p-4 mb-4 border"
+          style={{ backgroundColor: colors.card, borderColor: colors.border }}
+        >
+          <Text
+            className="text-lg font-bold mb-3"
+            style={{ color: colors.text }}
+          >
+            {t("contactInformation")}
+          </Text>
+
           <View className="flex-row items-center mb-2">
-            <Ionicons name="mail-outline" size={18} color="#6b7280" />
-            <Text className="text-sm text-gray-600 ml-2 flex-1">Email</Text>
-            <Text className="text-sm font-semibold text-gray-900">{candidate.email}</Text>
+            <Ionicons
+              name="mail-outline"
+              size={18}
+              color={colors.textSecondary}
+            />
+            <Text
+              className="text-sm ml-2 flex-1"
+              style={{ color: colors.textSecondary }}
+            >
+              {tCommon("email")}
+            </Text>
+            <Text
+              className="text-sm font-semibold"
+              style={{ color: colors.text }}
+            >
+              {candidate.email}
+            </Text>
           </View>
 
           {candidate.phoneNumber && (
             <View className="flex-row items-center mb-2">
-              <Ionicons name="call-outline" size={18} color="#6b7280" />
-              <Text className="text-sm text-gray-600 ml-2 flex-1">Phone</Text>
-              <Text className="text-sm font-semibold text-gray-900">{candidate.phoneNumber}</Text>
+              <Ionicons
+                name="call-outline"
+                size={18}
+                color={colors.textSecondary}
+              />
+              <Text
+                className="text-sm ml-2 flex-1"
+                style={{ color: colors.textSecondary }}
+              >
+                {t("phone")}
+              </Text>
+              <Text
+                className="text-sm font-semibold"
+                style={{ color: colors.text }}
+              >
+                {candidate.phoneNumber}
+              </Text>
             </View>
           )}
 
           {candidate.address && (
             <View className="flex-row items-center mb-2">
-              <Ionicons name="location-outline" size={18} color="#6b7280" />
-              <Text className="text-sm text-gray-600 ml-2 flex-1">Address</Text>
-              <Text className="text-sm font-semibold text-gray-900 flex-1 text-right">
+              <Ionicons
+                name="location-outline"
+                size={18}
+                color={colors.textSecondary}
+              />
+              <Text
+                className="text-sm ml-2 flex-1"
+                style={{ color: colors.textSecondary }}
+              >
+                {t("address")}
+              </Text>
+              <Text
+                className="text-sm font-semibold flex-1 text-right"
+                style={{ color: colors.text }}
+              >
                 {candidate.address}
               </Text>
             </View>
@@ -296,9 +439,23 @@ export default function CandidateDetailScreen() {
 
           {candidate.city && (
             <View className="flex-row items-center mb-2">
-              <Ionicons name="business-outline" size={18} color="#6b7280" />
-              <Text className="text-sm text-gray-600 ml-2 flex-1">City</Text>
-              <Text className="text-sm font-semibold text-gray-900">{candidate.city}</Text>
+              <Ionicons
+                name="business-outline"
+                size={18}
+                color={colors.textSecondary}
+              />
+              <Text
+                className="text-sm ml-2 flex-1"
+                style={{ color: colors.textSecondary }}
+              >
+                {t("city")}
+              </Text>
+              <Text
+                className="text-sm font-semibold"
+                style={{ color: colors.text }}
+              >
+                {candidate.city}
+              </Text>
             </View>
           )}
 
@@ -308,8 +465,13 @@ export default function CandidateDetailScreen() {
               className="flex-row items-center mb-2"
             >
               <Ionicons name="logo-linkedin" size={18} color="#0077b5" />
-              <Text className="text-sm text-blue-600 ml-2 flex-1">LinkedIn</Text>
-              <Ionicons name="open-outline" size={16} color="#2563eb" />
+              <Text
+                className="text-sm ml-2 flex-1"
+                style={{ color: colors.primary }}
+              >
+                {t("linkedin")}
+              </Text>
+              <Ionicons name="open-outline" size={16} color={colors.primary} />
             </TouchableOpacity>
           )}
 
@@ -318,53 +480,111 @@ export default function CandidateDetailScreen() {
               onPress={() => handleOpenUrl(candidate.portfolioUrl!)}
               className="flex-row items-center mb-2"
             >
-              <Ionicons name="globe-outline" size={18} color="#6b7280" />
-              <Text className="text-sm text-blue-600 ml-2 flex-1">Portfolio</Text>
-              <Ionicons name="open-outline" size={16} color="#2563eb" />
+              <Ionicons
+                name="globe-outline"
+                size={18}
+                color={colors.textSecondary}
+              />
+              <Text
+                className="text-sm ml-2 flex-1"
+                style={{ color: colors.primary }}
+              >
+                {t("portfolio")}
+              </Text>
+              <Ionicons name="open-outline" size={16} color={colors.primary} />
             </TouchableOpacity>
           )}
         </View>
 
         {/* Skills & Experience */}
-        <View className="bg-white rounded-lg p-4 mb-4 border border-gray-200">
-          <Text className="text-lg font-bold text-gray-900 mb-3">Skills & Experience</Text>
-          
+        <View
+          className="rounded-lg p-4 mb-4 border"
+          style={{ backgroundColor: colors.card, borderColor: colors.border }}
+        >
+          <Text
+            className="text-lg font-bold mb-3"
+            style={{ color: colors.text }}
+          >
+            {t("skillsExperience")}
+          </Text>
+
           {candidate.skills && (
             <View className="mb-3">
-              <Text className="text-sm font-semibold text-gray-700 mb-1">Skills</Text>
-              <Text className="text-sm text-gray-900">{candidate.skills}</Text>
+              <Text
+                className="text-sm font-semibold mb-1"
+                style={{ color: colors.text }}
+              >
+                {t("skills")}
+              </Text>
+              <Text className="text-sm" style={{ color: colors.text }}>
+                {candidate.skills}
+              </Text>
             </View>
           )}
 
           {candidate.workExperience && (
             <View className="mb-3">
-              <Text className="text-sm font-semibold text-gray-700 mb-1">Work Experience</Text>
-              <Text className="text-sm text-gray-900">{candidate.workExperience}</Text>
+              <Text
+                className="text-sm font-semibold mb-1"
+                style={{ color: colors.text }}
+              >
+                {t("workExperience")}
+              </Text>
+              <Text className="text-sm" style={{ color: colors.text }}>
+                {candidate.workExperience}
+              </Text>
             </View>
           )}
 
           {candidate.education && (
             <View className="mb-3">
-              <Text className="text-sm font-semibold text-gray-700 mb-1">Education</Text>
-              <Text className="text-sm text-gray-900">{candidate.education}</Text>
+              <Text
+                className="text-sm font-semibold mb-1"
+                style={{ color: colors.text }}
+              >
+                {t("education")}
+              </Text>
+              <Text className="text-sm" style={{ color: colors.text }}>
+                {candidate.education}
+              </Text>
             </View>
           )}
 
           {candidate.certifications && (
             <View>
-              <Text className="text-sm font-semibold text-gray-700 mb-1">Certifications</Text>
-              <Text className="text-sm text-gray-900">{candidate.certifications}</Text>
+              <Text
+                className="text-sm font-semibold mb-1"
+                style={{ color: colors.text }}
+              >
+                {t("certifications")}
+              </Text>
+              <Text className="text-sm" style={{ color: colors.text }}>
+                {candidate.certifications}
+              </Text>
             </View>
           )}
 
           {screeningScore !== null && screeningScore !== undefined && (
-            <View className="mt-3 pt-3 border-t border-gray-200">
+            <View
+              className="mt-3 pt-3 border-t"
+              style={{ borderTopColor: colors.border }}
+            >
               <View className="flex-row items-center justify-between">
-                <Text className="text-sm font-semibold text-gray-700">Screening Score</Text>
+                <Text
+                  className="text-sm font-semibold"
+                  style={{ color: colors.text }}
+                >
+                  {t("screeningScore")}
+                </Text>
                 <View className="flex-row items-center">
-                  <Ionicons name="star" size={16} color="#f59e0b" />
-                  <Text className="text-sm font-bold text-gray-900 ml-1">
-                    {typeof screeningScore === 'number' ? screeningScore.toFixed(1) : 'N/A'}
+                  <Ionicons name="star" size={16} color={colors.warning} />
+                  <Text
+                    className="text-sm font-bold ml-1"
+                    style={{ color: colors.text }}
+                  >
+                    {typeof screeningScore === "number"
+                      ? screeningScore.toFixed(1)
+                      : tCommon("nA")}
                   </Text>
                 </View>
               </View>
@@ -374,40 +594,76 @@ export default function CandidateDetailScreen() {
 
         {/* Resume */}
         {candidate.resumeUrl && (
-          <View className="bg-white rounded-lg p-4 mb-4 border border-gray-200">
-            <Text className="text-lg font-bold text-gray-900 mb-3">Resume</Text>
+          <View
+            className="rounded-lg p-4 mb-4 border"
+            style={{ backgroundColor: colors.card, borderColor: colors.border }}
+          >
+            <Text
+              className="text-lg font-bold mb-3"
+              style={{ color: colors.text }}
+            >
+              {t("resume")}
+            </Text>
             <TouchableOpacity
               onPress={() => handleOpenUrl(candidate.resumeUrl!)}
-              className="flex-row items-center justify-between bg-blue-50 px-4 py-3 rounded-lg"
+              className="flex-row items-center justify-between px-4 py-3 rounded-lg"
+              style={{ backgroundColor: colors.primaryLight }}
             >
               <View className="flex-row items-center flex-1">
-                <Ionicons name="document-text-outline" size={24} color="#2563eb" />
-                <Text className="text-sm font-semibold text-blue-600 ml-3">
-                  View Resume
+                <Ionicons
+                  name="document-text-outline"
+                  size={24}
+                  color={colors.primary}
+                />
+                <Text
+                  className="text-sm font-semibold ml-3"
+                  style={{ color: colors.primary }}
+                >
+                  {t("viewResume")}
                 </Text>
               </View>
-              <Ionicons name="open-outline" size={20} color="#2563eb" />
+              <Ionicons name="open-outline" size={20} color={colors.primary} />
             </TouchableOpacity>
           </View>
         )}
 
         {/* Files */}
         {files.length > 0 && (
-          <View className="bg-white rounded-lg p-4 mb-4 border border-gray-200">
-            <Text className="text-lg font-bold text-gray-900 mb-3">Files</Text>
+          <View
+            className="rounded-lg p-4 mb-4 border"
+            style={{ backgroundColor: colors.card, borderColor: colors.border }}
+          >
+            <Text
+              className="text-lg font-bold mb-3"
+              style={{ color: colors.text }}
+            >
+              {t("files")}
+            </Text>
             {files.map((file) => (
               <View
                 key={file.fileId}
-                className="flex-row items-center justify-between bg-gray-50 px-4 py-3 rounded-lg mb-2"
+                className="flex-row items-center justify-between px-4 py-3 rounded-lg mb-2"
+                style={{ backgroundColor: colors.surface }}
               >
                 <View className="flex-row items-center flex-1">
-                  <Ionicons name="document-outline" size={20} color="#6b7280" />
+                  <Ionicons
+                    name="document-outline"
+                    size={20}
+                    color={colors.textSecondary}
+                  />
                   <View className="flex-1 ml-3">
-                    <Text className="text-sm font-semibold text-gray-700" numberOfLines={1}>
+                    <Text
+                      className="text-sm font-semibold"
+                      style={{ color: colors.text }}
+                      numberOfLines={1}
+                    >
                       {file.fileName || file.originalName}
                     </Text>
                     {file.fileSize && (
-                      <Text className="text-xs text-gray-500 mt-1">
+                      <Text
+                        className="text-xs mt-1"
+                        style={{ color: colors.textTertiary }}
+                      >
                         {file.fileSize}
                       </Text>
                     )}
@@ -420,13 +676,21 @@ export default function CandidateDetailScreen() {
                         onPress={() => handleOpenUrl(file.fileUrl)}
                         className="p-2"
                       >
-                        <Ionicons name="eye-outline" size={18} color="#2563eb" />
+                        <Ionicons
+                          name="eye-outline"
+                          size={18}
+                          color={colors.primary}
+                        />
                       </TouchableOpacity>
                       <TouchableOpacity
                         onPress={() => handleDownloadFile(file)}
                         className="p-2"
                       >
-                        <Ionicons name="download-outline" size={18} color="#10b981" />
+                        <Ionicons
+                          name="download-outline"
+                          size={18}
+                          color={colors.success}
+                        />
                       </TouchableOpacity>
                     </>
                   )}
@@ -438,28 +702,45 @@ export default function CandidateDetailScreen() {
 
         {/* Applications */}
         {applications.length > 0 && (
-          <View className="bg-white rounded-lg p-4 mb-4 border border-gray-200">
-            <Text className="text-lg font-bold text-gray-900 mb-3">
-              Applications ({applications.length})
+          <View
+            className="rounded-lg p-4 mb-4 border"
+            style={{ backgroundColor: colors.card, borderColor: colors.border }}
+          >
+            <Text
+              className="text-lg font-bold mb-3"
+              style={{ color: colors.text }}
+            >
+              {t("applications")} ({applications.length})
             </Text>
             {applications.map((app) => (
               <TouchableOpacity
                 key={app.applicationId}
-                onPress={() => router.push(`/recruitment/jobs/detail?id=${app.jobPostingId}`)}
-                className="border border-gray-200 rounded-lg p-3 mb-2"
+                onPress={() =>
+                  router.push(`/recruitment/jobs/detail?id=${app.jobPostingId}`)
+                }
+                className="border rounded-lg p-3 mb-2"
+                style={{ borderColor: colors.border }}
               >
                 <View className="flex-row justify-between items-start mb-2">
                   <View className="flex-1">
-                    <Text className="text-sm font-semibold text-gray-900 mb-1">
-                      Application #{app.applicationId}
+                    <Text
+                      className="text-sm font-semibold mb-1"
+                      style={{ color: colors.text }}
+                    >
+                      {t("application")} #{app.applicationId}
                     </Text>
-                    <Text className="text-xs text-gray-600">
+                    <Text
+                      className="text-xs"
+                      style={{ color: colors.textSecondary }}
+                    >
                       {formatDate(app.appliedAt)}
                     </Text>
                   </View>
                   <View
-                    className={`px-2 py-1 rounded-full`}
-                    style={{ backgroundColor: `${getStatusColor(app.applicationStatus)}20` }}
+                    className="px-2 py-1 rounded-full"
+                    style={{
+                      backgroundColor: `${getStatusColor(app.applicationStatus)}20`,
+                    }}
                   >
                     <Text
                       className="text-xs font-semibold"
@@ -471,9 +752,19 @@ export default function CandidateDetailScreen() {
                 </View>
                 {app.score !== undefined && app.score !== null && (
                   <View className="flex-row items-center mt-2">
-                    <Ionicons name="star-outline" size={14} color="#f59e0b" />
-                    <Text className="text-xs font-semibold text-gray-700 ml-1">
-                      Score: {typeof app.score === 'number' ? app.score.toFixed(1) : 'N/A'}
+                    <Ionicons
+                      name="star-outline"
+                      size={14}
+                      color={colors.warning}
+                    />
+                    <Text
+                      className="text-xs font-semibold ml-1"
+                      style={{ color: colors.text }}
+                    >
+                      {t("score")}:{" "}
+                      {typeof app.score === "number"
+                        ? app.score.toFixed(1)
+                        : tCommon("nA")}
                     </Text>
                   </View>
                 )}
@@ -483,32 +774,54 @@ export default function CandidateDetailScreen() {
         )}
 
         {/* Metadata */}
-        <View className="bg-white rounded-lg p-4 mb-4 border border-gray-200">
-          <Text className="text-lg font-bold text-gray-900 mb-3">Additional Info</Text>
-          
+        <View
+          className="rounded-lg p-4 mb-4 border"
+          style={{ backgroundColor: colors.card, borderColor: colors.border }}
+        >
+          <Text
+            className="text-lg font-bold mb-3"
+            style={{ color: colors.text }}
+          >
+            {t("additionalInfo")}
+          </Text>
+
           <View className="flex-row justify-between mb-2">
-            <Text className="text-sm text-gray-600">Created</Text>
-            <Text className="text-sm font-semibold text-gray-900">
+            <Text className="text-sm" style={{ color: colors.textSecondary }}>
+              {t("created")}
+            </Text>
+            <Text
+              className="text-sm font-semibold"
+              style={{ color: colors.text }}
+            >
               {formatDate(candidate.createdAt)}
             </Text>
           </View>
 
           <View className="flex-row justify-between mb-2">
-            <Text className="text-sm text-gray-600">Last Updated</Text>
-            <Text className="text-sm font-semibold text-gray-900">
+            <Text className="text-sm" style={{ color: colors.textSecondary }}>
+              {t("lastUpdated")}
+            </Text>
+            <Text
+              className="text-sm font-semibold"
+              style={{ color: colors.text }}
+            >
               {formatDate(candidate.updatedAt)}
             </Text>
           </View>
 
           <View className="flex-row justify-between">
-            <Text className="text-sm text-gray-600">Active</Text>
-            <Text className="text-sm font-semibold text-gray-900">
-              {candidate.isActive ? 'Yes' : 'No'}
+            <Text className="text-sm" style={{ color: colors.textSecondary }}>
+              {t("active")}
+            </Text>
+            <Text
+              className="text-sm font-semibold"
+              style={{ color: colors.text }}
+            >
+              {candidate.isActive ? t("yes") : t("no")}
             </Text>
           </View>
         </View>
-        </ScrollView>
-      </View>
-    );
-  }
-
+      </ScrollView>
+    </View>
+  );
+}

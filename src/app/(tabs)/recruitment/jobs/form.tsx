@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -8,21 +8,52 @@ import {
   ActivityIndicator,
   Alert,
   Platform,
-} from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { useRouter, useLocalSearchParams } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { recruitmentAPI, CreateJobPostingRequest, UpdateJobPostingRequest, JobPosting } from '@/services/api/recruitment';
-import { companyAPI, Department, Position } from '@/services/api/company';
-import { employeeAPI } from '@/services/api/employees';
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { useRouter, useLocalSearchParams } from "expo-router";
+import { useTranslation } from "react-i18next";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import {
+  recruitmentAPI,
+  CreateJobPostingRequest,
+  UpdateJobPostingRequest,
+  JobPosting,
+} from "@/services/api/recruitment";
+import { companyAPI, Department, Position } from "@/services/api/company";
+import { employeeAPI } from "@/services/api/employees";
+import { useThemeStore } from "@/store/theme-store";
+import { getColors } from "@/theme/colors";
 
-const EMPLOYMENT_TYPES = ['Full-time', 'Part-time', 'Contract', 'Internship', 'Temporary'];
-const EXPERIENCE_LEVELS = ['Entry-level', 'Mid-level', 'Senior', 'Executive', 'Director'];
-const EDUCATION_LEVELS = ['High School', 'Associate', 'Bachelor', 'Master', 'PhD'];
+const EMPLOYMENT_TYPES = [
+  "Full-time",
+  "Part-time",
+  "Contract",
+  "Internship",
+  "Temporary",
+];
+const EXPERIENCE_LEVELS = [
+  "Entry-level",
+  "Mid-level",
+  "Senior",
+  "Executive",
+  "Director",
+];
+const EDUCATION_LEVELS = [
+  "High School",
+  "Associate",
+  "Bachelor",
+  "Master",
+  "PhD",
+];
 
 export default function JobFormScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ id?: string }>();
+  const insets = useSafeAreaInsets();
+  const { t } = useTranslation("recruitment");
+  const { t: tCommon } = useTranslation("common");
+  const { isDark } = useThemeStore();
+  const colors = getColors(isDark);
   const isEdit = !!params.id;
 
   const [loading, setLoading] = useState(true);
@@ -31,31 +62,38 @@ export default function JobFormScreen() {
   const [departments, setDepartments] = useState<Department[]>([]);
   const [positions, setPositions] = useState<Position[]>([]);
   const [employees, setEmployees] = useState<any[]>([]);
-  
+
   const [formData, setFormData] = useState({
-    title: '',
-    description: '',
-    requirements: '',
-    benefits: '',
-    salaryMin: '',
-    salaryMax: '',
-    vacancies: '1',
-    employmentType: '',
-    experienceLevel: '',
-    skills: '',
-    minExperience: '',
-    maxExperience: '',
-    educationLevel: '',
-    applicationDeadline: '',
-    location: '',
-    departmentId: '',
-    positionId: '',
-    hiringManagerId: '',
-    status: 'draft',
+    title: "",
+    description: "",
+    requirements: "",
+    benefits: "",
+    salaryMin: "",
+    salaryMax: "",
+    vacancies: "1",
+    employmentType: "",
+    experienceLevel: "",
+    skills: "",
+    minExperience: "",
+    maxExperience: "",
+    educationLevel: "",
+    applicationDeadline: "",
+    location: "",
+    departmentId: "",
+    positionId: "",
+    hiringManagerId: "",
+    status: "draft",
   });
 
   const [showDropdown, setShowDropdown] = useState<{
-    type: 'employmentType' | 'experienceLevel' | 'educationLevel' | 'department' | 'position' | 'hiringManager' | null;
+    type:
+      | "employmentType"
+      | "experienceLevel"
+      | "educationLevel"
+      | "department"
+      | "position"
+      | "hiringManager"
+      | null;
   }>({ type: null });
 
   useEffect(() => {
@@ -65,49 +103,51 @@ export default function JobFormScreen() {
   const loadData = async () => {
     try {
       setLoading(true);
-      
+
       // Load departments, positions, employees
       const [deptsRes, posRes, empRes] = await Promise.all([
         companyAPI.getDepartments({ limit: 100 }),
         companyAPI.getPositions({ limit: 100 }),
         employeeAPI.getEmployees({ limit: 100 }),
       ]);
-      
+
       setDepartments(deptsRes.data);
       setPositions(posRes.data);
       setEmployees(empRes.data);
 
       // If editing, load job data
       if (params.id) {
-        const jobData = await recruitmentAPI.getJobPostingById(Number(params.id));
+        const jobData = await recruitmentAPI.getJobPostingById(
+          Number(params.id)
+        );
         setJob(jobData);
         setFormData({
-          title: jobData.title || '',
-          description: jobData.description || '',
-          requirements: jobData.requirements || '',
-          benefits: jobData.benefits || '',
-          salaryMin: jobData.salaryMin || '',
-          salaryMax: jobData.salaryMax || '',
-          vacancies: jobData.vacancies?.toString() || '1',
-          employmentType: jobData.employmentType || '',
-          experienceLevel: jobData.experienceLevel || '',
-          skills: jobData.skills || '',
-          minExperience: jobData.minExperience?.toString() || '',
-          maxExperience: jobData.maxExperience?.toString() || '',
-          educationLevel: jobData.educationLevel || '',
+          title: jobData.title || "",
+          description: jobData.description || "",
+          requirements: jobData.requirements || "",
+          benefits: jobData.benefits || "",
+          salaryMin: jobData.salaryMin || "",
+          salaryMax: jobData.salaryMax || "",
+          vacancies: jobData.vacancies?.toString() || "1",
+          employmentType: jobData.employmentType || "",
+          experienceLevel: jobData.experienceLevel || "",
+          skills: jobData.skills || "",
+          minExperience: jobData.minExperience?.toString() || "",
+          maxExperience: jobData.maxExperience?.toString() || "",
+          educationLevel: jobData.educationLevel || "",
           applicationDeadline: jobData.applicationDeadline
-            ? new Date(jobData.applicationDeadline).toISOString().split('T')[0]
-            : '',
-          location: jobData.location || '',
-          departmentId: jobData.departmentId?.toString() || '',
-          positionId: jobData.positionId?.toString() || '',
-          hiringManagerId: jobData.hiringManagerId?.toString() || '',
-          status: jobData.status || 'draft',
+            ? new Date(jobData.applicationDeadline).toISOString().split("T")[0]
+            : "",
+          location: jobData.location || "",
+          departmentId: jobData.departmentId?.toString() || "",
+          positionId: jobData.positionId?.toString() || "",
+          hiringManagerId: jobData.hiringManagerId?.toString() || "",
+          status: jobData.status || "draft",
         });
       }
     } catch (error) {
-      console.error('Error loading data:', error);
-      Alert.alert('Error', 'Failed to load data');
+      console.error("Error loading data:", error);
+      Alert.alert(tCommon("error"), t("failedToLoadData"));
       router.back();
     } finally {
       setLoading(false);
@@ -115,7 +155,7 @@ export default function JobFormScreen() {
   };
 
   const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
   const handleSelect = (type: string, value: string) => {
@@ -125,23 +165,23 @@ export default function JobFormScreen() {
 
   const validateForm = (): boolean => {
     if (!formData.title.trim()) {
-      Alert.alert('Validation Error', 'Title is required');
+      Alert.alert(t("validationError"), t("titleRequired"));
       return false;
     }
     if (!formData.description.trim()) {
-      Alert.alert('Validation Error', 'Description is required');
+      Alert.alert(t("validationError"), t("descriptionRequired"));
       return false;
     }
     if (!formData.departmentId) {
-      Alert.alert('Validation Error', 'Department is required');
+      Alert.alert(t("validationError"), t("departmentRequired"));
       return false;
     }
     if (!formData.positionId) {
-      Alert.alert('Validation Error', 'Position is required');
+      Alert.alert(t("validationError"), t("positionRequired"));
       return false;
     }
     if (!formData.applicationDeadline) {
-      Alert.alert('Validation Error', 'Application deadline is required');
+      Alert.alert(t("validationError"), t("applicationDeadlineRequired"));
       return false;
     }
     return true;
@@ -180,45 +220,69 @@ export default function JobFormScreen() {
           status: formData.status,
         };
         await recruitmentAPI.updateJobPosting(Number(params.id), updateData);
-        Alert.alert('Success', 'Job posting updated successfully');
+        Alert.alert(tCommon("success"), t("jobUpdatedSuccessfully"));
       } else {
-        const createData: CreateJobPostingRequest = baseData as CreateJobPostingRequest;
+        const createData: CreateJobPostingRequest =
+          baseData as CreateJobPostingRequest;
         const newJob = await recruitmentAPI.createJobPosting(createData);
-        Alert.alert('Success', 'Job posting created successfully');
+        Alert.alert(tCommon("success"), t("jobCreatedSuccessfully"));
         router.replace(`/recruitment/jobs/detail?id=${newJob.jobPostingId}`);
         return;
       }
 
       router.back();
     } catch (error: any) {
-      console.error('Error saving job:', error);
-      const errorMessage = error?.response?.data?.message || error?.message || 'Failed to save job posting';
-      Alert.alert('Error', errorMessage);
+      console.error("Error saving job:", error);
+      const errorMessage =
+        error?.response?.data?.message ||
+        error?.message ||
+        t("failedToSaveJob");
+      Alert.alert(tCommon("error"), errorMessage);
     } finally {
       setSaving(false);
     }
   };
 
-  const renderDropdown = (type: string, options: any[], currentValue: string, displayKey?: string) => {
+  const renderDropdown = (
+    type: string,
+    options: any[],
+    currentValue: string,
+    displayKey?: string
+  ) => {
     if (showDropdown.type !== type) return null;
 
     return (
-      <View className="absolute z-50 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 w-full mt-1">
+      <View
+        className="absolute z-50 rounded-lg shadow-lg max-h-60 w-full mt-1 border"
+        style={{ backgroundColor: colors.card, borderColor: colors.border }}
+      >
         <ScrollView className="max-h-60">
           {options.map((option) => {
-            const value = option[displayKey || 'id'] || option;
-            const label = option[displayKey ? displayKey.replace('Id', 'Name') : 'name'] || option;
+            const value = option[displayKey || "id"] || option;
+            const label =
+              option[displayKey ? displayKey.replace("Id", "Name") : "name"] ||
+              option;
             const isSelected = currentValue === value?.toString();
-            
+
             return (
               <TouchableOpacity
                 key={value}
                 onPress={() => handleSelect(type, value?.toString() || option)}
-                className={`px-4 py-3 border-b border-gray-100 ${
-                  isSelected ? 'bg-blue-50' : ''
-                }`}
+                className="px-4 py-3 border-b"
+                style={{
+                  borderBottomColor: colors.border,
+                  backgroundColor: isSelected
+                    ? colors.primaryLight
+                    : "transparent",
+                }}
               >
-                <Text className={`text-base ${isSelected ? 'font-semibold text-blue-600' : 'text-gray-900'}`}>
+                <Text
+                  className="text-base"
+                  style={{
+                    color: isSelected ? colors.primary : colors.text,
+                    fontWeight: isSelected ? "600" : "400",
+                  }}
+                >
                   {label}
                 </Text>
               </TouchableOpacity>
@@ -235,227 +299,525 @@ export default function JobFormScreen() {
     value: string,
     placeholder?: string,
     multiline?: boolean,
-    keyboardType: 'default' | 'numeric' | 'email-address' = 'default'
+    keyboardType: "default" | "numeric" | "email-address" = "default"
   ) => (
     <View className="mb-4">
-      <Text className="text-sm font-semibold text-gray-700 mb-2">{label}</Text>
+      <Text
+        className="text-sm font-semibold mb-2"
+        style={{ color: colors.text }}
+      >
+        {label}
+      </Text>
       <TextInput
-        className="bg-white border border-gray-300 rounded-lg px-4 py-3 text-gray-900"
-        placeholder={placeholder || `Enter ${label.toLowerCase()}`}
-        placeholderTextColor="#9ca3af"
+        className="rounded-lg px-4 py-3"
+        style={{
+          backgroundColor: colors.surface,
+          borderColor: colors.border,
+          borderWidth: 1,
+          color: colors.text,
+          textAlignVertical: multiline ? "top" : "center",
+        }}
+        placeholder={
+          placeholder || t("enterField", { field: label.toLowerCase() })
+        }
+        placeholderTextColor={colors.textTertiary}
         value={value}
         onChangeText={(text) => handleInputChange(field, text)}
         multiline={multiline}
         numberOfLines={multiline ? 4 : 1}
         keyboardType={keyboardType}
-        style={{ textAlignVertical: multiline ? 'top' : 'center' }}
       />
     </View>
   );
 
   if (loading) {
     return (
-      <View className="flex-1 bg-gray-50" style={{ paddingTop: insets.top }}>
+      <View
+        className="flex-1"
+        style={{ backgroundColor: colors.background, paddingTop: insets.top }}
+      >
         <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color="#2563eb" />
-          <Text className="text-gray-500 mt-4">Loading...</Text>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text className="mt-4" style={{ color: colors.textSecondary }}>
+            {tCommon("loading")}
+          </Text>
         </View>
       </View>
     );
   }
 
   return (
-    <View className="flex-1 bg-gray-50" style={{ paddingTop: insets.top }}>
+    <View
+      className="flex-1"
+      style={{ backgroundColor: colors.background, paddingTop: insets.top }}
+    >
       {/* Header */}
-      <View className="bg-white border-b border-gray-200 px-4 py-3">
+      <View
+        className="px-4 py-3 border-b"
+        style={{
+          backgroundColor: colors.surface,
+          borderBottomColor: colors.border,
+        }}
+      >
         <View className="flex-row items-center justify-between mb-3">
           <TouchableOpacity onPress={() => router.back()}>
-            <Ionicons name="arrow-back" size={24} color="#111827" />
+            <Ionicons name="arrow-back" size={24} color={colors.text} />
           </TouchableOpacity>
-          <Text className="text-xl font-bold text-gray-900">
-            {isEdit ? 'Edit Job' : 'Create Job'}
+          <Text className="text-xl font-bold" style={{ color: colors.text }}>
+            {isEdit ? t("editJob") : t("createJob")}
           </Text>
           <View style={{ width: 24 }} />
         </View>
       </View>
 
-      <ScrollView className="flex-1" contentContainerStyle={{ padding: 16 }}>
+      <ScrollView
+        className="flex-1"
+        contentContainerStyle={{ padding: 16 }}
+        style={{ backgroundColor: colors.background }}
+      >
         {/* Basic Information */}
-        <View className="bg-white rounded-lg p-4 mb-4 border border-gray-200">
-          <Text className="text-lg font-bold text-gray-900 mb-4">Basic Information</Text>
-          
-          {renderFormField('Title *', 'title', formData.title, 'Enter job title')}
-          {renderFormField('Description *', 'description', formData.description, 'Enter job description', true)}
-          {renderFormField('Requirements', 'requirements', formData.requirements, 'Enter requirements', true)}
-          {renderFormField('Benefits', 'benefits', formData.benefits, 'Enter benefits', true)}
+        <View
+          className="rounded-lg p-4 mb-4 border"
+          style={{ backgroundColor: colors.card, borderColor: colors.border }}
+        >
+          <Text
+            className="text-lg font-bold mb-4"
+            style={{ color: colors.text }}
+          >
+            {t("basicInformation")}
+          </Text>
+
+          {renderFormField(
+            t("title") + " *",
+            "title",
+            formData.title,
+            t("enterJobTitle")
+          )}
+          {renderFormField(
+            t("description") + " *",
+            "description",
+            formData.description,
+            t("enterJobDescription"),
+            true
+          )}
+          {renderFormField(
+            t("requirements"),
+            "requirements",
+            formData.requirements,
+            t("enterRequirements"),
+            true
+          )}
+          {renderFormField(
+            t("benefits"),
+            "benefits",
+            formData.benefits,
+            t("enterBenefits"),
+            true
+          )}
         </View>
 
         {/* Salary & Details */}
-        <View className="bg-white rounded-lg p-4 mb-4 border border-gray-200">
-          <Text className="text-lg font-bold text-gray-900 mb-4">Salary & Details</Text>
-          
+        <View
+          className="rounded-lg p-4 mb-4 border"
+          style={{ backgroundColor: colors.card, borderColor: colors.border }}
+        >
+          <Text
+            className="text-lg font-bold mb-4"
+            style={{ color: colors.text }}
+          >
+            {t("salaryDetails")}
+          </Text>
+
           <View className="flex-row gap-3 mb-4">
             <View className="flex-1">
-              {renderFormField('Min Salary', 'salaryMin', formData.salaryMin, '0', false, 'numeric')}
+              {renderFormField(
+                t("minSalary"),
+                "salaryMin",
+                formData.salaryMin,
+                "0",
+                false,
+                "numeric"
+              )}
             </View>
             <View className="flex-1">
-              {renderFormField('Max Salary', 'salaryMax', formData.salaryMax, '0', false, 'numeric')}
+              {renderFormField(
+                t("maxSalary"),
+                "salaryMax",
+                formData.salaryMax,
+                "0",
+                false,
+                "numeric"
+              )}
             </View>
           </View>
 
-          {renderFormField('Vacancies', 'vacancies', formData.vacancies, '1', false, 'numeric')}
-          {renderFormField('Location', 'location', formData.location, 'Enter location')}
+          {renderFormField(
+            t("vacancies"),
+            "vacancies",
+            formData.vacancies,
+            "1",
+            false,
+            "numeric"
+          )}
+          {renderFormField(
+            t("location"),
+            "location",
+            formData.location,
+            t("enterLocation")
+          )}
 
           {/* Employment Type */}
           <View className="mb-4">
-            <Text className="text-sm font-semibold text-gray-700 mb-2">Employment Type</Text>
-            <TouchableOpacity
-              onPress={() => setShowDropdown({ type: 'employmentType' })}
-              className="bg-white border border-gray-300 rounded-lg px-4 py-3 flex-row items-center justify-between"
+            <Text
+              className="text-sm font-semibold mb-2"
+              style={{ color: colors.text }}
             >
-              <Text className={formData.employmentType ? 'text-gray-900' : 'text-gray-400'}>
-                {formData.employmentType || 'Select employment type'}
+              {t("employmentType")}
+            </Text>
+            <TouchableOpacity
+              onPress={() => setShowDropdown({ type: "employmentType" })}
+              className="rounded-lg px-4 py-3 flex-row items-center justify-between border"
+              style={{
+                backgroundColor: colors.surface,
+                borderColor: colors.border,
+              }}
+            >
+              <Text
+                style={{
+                  color: formData.employmentType
+                    ? colors.text
+                    : colors.textTertiary,
+                }}
+              >
+                {formData.employmentType || t("selectEmploymentType")}
               </Text>
-              <Ionicons name="chevron-down" size={20} color="#6b7280" />
+              <Ionicons
+                name="chevron-down"
+                size={20}
+                color={colors.textSecondary}
+              />
             </TouchableOpacity>
-            {renderDropdown('employmentType', EMPLOYMENT_TYPES, formData.employmentType)}
+            {renderDropdown(
+              "employmentType",
+              EMPLOYMENT_TYPES,
+              formData.employmentType
+            )}
           </View>
 
           {/* Experience Level */}
           <View className="mb-4">
-            <Text className="text-sm font-semibold text-gray-700 mb-2">Experience Level</Text>
-            <TouchableOpacity
-              onPress={() => setShowDropdown({ type: 'experienceLevel' })}
-              className="bg-white border border-gray-300 rounded-lg px-4 py-3 flex-row items-center justify-between"
+            <Text
+              className="text-sm font-semibold mb-2"
+              style={{ color: colors.text }}
             >
-              <Text className={formData.experienceLevel ? 'text-gray-900' : 'text-gray-400'}>
-                {formData.experienceLevel || 'Select experience level'}
+              {t("experienceLevel")}
+            </Text>
+            <TouchableOpacity
+              onPress={() => setShowDropdown({ type: "experienceLevel" })}
+              className="rounded-lg px-4 py-3 flex-row items-center justify-between border"
+              style={{
+                backgroundColor: colors.surface,
+                borderColor: colors.border,
+              }}
+            >
+              <Text
+                style={{
+                  color: formData.experienceLevel
+                    ? colors.text
+                    : colors.textTertiary,
+                }}
+              >
+                {formData.experienceLevel || t("selectExperienceLevel")}
               </Text>
-              <Ionicons name="chevron-down" size={20} color="#6b7280" />
+              <Ionicons
+                name="chevron-down"
+                size={20}
+                color={colors.textSecondary}
+              />
             </TouchableOpacity>
-            {renderDropdown('experienceLevel', EXPERIENCE_LEVELS, formData.experienceLevel)}
+            {renderDropdown(
+              "experienceLevel",
+              EXPERIENCE_LEVELS,
+              formData.experienceLevel
+            )}
           </View>
 
           <View className="flex-row gap-3">
             <View className="flex-1">
-              {renderFormField('Min Experience', 'minExperience', formData.minExperience, '0', false, 'numeric')}
+              {renderFormField(
+                t("minExperience"),
+                "minExperience",
+                formData.minExperience,
+                "0",
+                false,
+                "numeric"
+              )}
             </View>
             <View className="flex-1">
-              {renderFormField('Max Experience', 'maxExperience', formData.maxExperience, '0', false, 'numeric')}
+              {renderFormField(
+                t("maxExperience"),
+                "maxExperience",
+                formData.maxExperience,
+                "0",
+                false,
+                "numeric"
+              )}
             </View>
           </View>
 
           {/* Education Level */}
           <View className="mb-4">
-            <Text className="text-sm font-semibold text-gray-700 mb-2">Education Level</Text>
-            <TouchableOpacity
-              onPress={() => setShowDropdown({ type: 'educationLevel' })}
-              className="bg-white border border-gray-300 rounded-lg px-4 py-3 flex-row items-center justify-between"
+            <Text
+              className="text-sm font-semibold mb-2"
+              style={{ color: colors.text }}
             >
-              <Text className={formData.educationLevel ? 'text-gray-900' : 'text-gray-400'}>
-                {formData.educationLevel || 'Select education level'}
+              {t("educationLevel")}
+            </Text>
+            <TouchableOpacity
+              onPress={() => setShowDropdown({ type: "educationLevel" })}
+              className="rounded-lg px-4 py-3 flex-row items-center justify-between border"
+              style={{
+                backgroundColor: colors.surface,
+                borderColor: colors.border,
+              }}
+            >
+              <Text
+                style={{
+                  color: formData.educationLevel
+                    ? colors.text
+                    : colors.textTertiary,
+                }}
+              >
+                {formData.educationLevel || t("selectEducationLevel")}
               </Text>
-              <Ionicons name="chevron-down" size={20} color="#6b7280" />
+              <Ionicons
+                name="chevron-down"
+                size={20}
+                color={colors.textSecondary}
+              />
             </TouchableOpacity>
-            {renderDropdown('educationLevel', EDUCATION_LEVELS, formData.educationLevel)}
+            {renderDropdown(
+              "educationLevel",
+              EDUCATION_LEVELS,
+              formData.educationLevel
+            )}
           </View>
 
-          {renderFormField('Skills', 'skills', formData.skills, 'Enter required skills', true)}
+          {renderFormField(
+            t("skills"),
+            "skills",
+            formData.skills,
+            t("enterRequiredSkills"),
+            true
+          )}
         </View>
 
         {/* Organization */}
-        <View className="bg-white rounded-lg p-4 mb-4 border border-gray-200">
-          <Text className="text-lg font-bold text-gray-900 mb-4">Organization</Text>
-          
+        <View
+          className="rounded-lg p-4 mb-4 border"
+          style={{ backgroundColor: colors.card, borderColor: colors.border }}
+        >
+          <Text
+            className="text-lg font-bold mb-4"
+            style={{ color: colors.text }}
+          >
+            {t("organization")}
+          </Text>
+
           {/* Department */}
           <View className="mb-4">
-            <Text className="text-sm font-semibold text-gray-700 mb-2">Department *</Text>
-            <TouchableOpacity
-              onPress={() => setShowDropdown({ type: 'department' })}
-              className="bg-white border border-gray-300 rounded-lg px-4 py-3 flex-row items-center justify-between"
+            <Text
+              className="text-sm font-semibold mb-2"
+              style={{ color: colors.text }}
             >
-              <Text className={formData.departmentId ? 'text-gray-900' : 'text-gray-400'}>
+              {t("department")} *
+            </Text>
+            <TouchableOpacity
+              onPress={() => setShowDropdown({ type: "department" })}
+              className="rounded-lg px-4 py-3 flex-row items-center justify-between border"
+              style={{
+                backgroundColor: colors.surface,
+                borderColor: colors.border,
+              }}
+            >
+              <Text
+                style={{
+                  color: formData.departmentId
+                    ? colors.text
+                    : colors.textTertiary,
+                }}
+              >
                 {formData.departmentId
-                  ? departments.find(d => d.departmentId.toString() === formData.departmentId)?.departmentName
-                  : 'Select department'}
+                  ? departments.find(
+                      (d) => d.departmentId.toString() === formData.departmentId
+                    )?.departmentName
+                  : t("selectDepartment")}
               </Text>
-              <Ionicons name="chevron-down" size={20} color="#6b7280" />
+              <Ionicons
+                name="chevron-down"
+                size={20}
+                color={colors.textSecondary}
+              />
             </TouchableOpacity>
-            {renderDropdown('department', departments, formData.departmentId, 'departmentId')}
+            {renderDropdown(
+              "department",
+              departments,
+              formData.departmentId,
+              "departmentId"
+            )}
           </View>
 
           {/* Position */}
           <View className="mb-4">
-            <Text className="text-sm font-semibold text-gray-700 mb-2">Position *</Text>
-            <TouchableOpacity
-              onPress={() => setShowDropdown({ type: 'position' })}
-              className="bg-white border border-gray-300 rounded-lg px-4 py-3 flex-row items-center justify-between"
+            <Text
+              className="text-sm font-semibold mb-2"
+              style={{ color: colors.text }}
             >
-              <Text className={formData.positionId ? 'text-gray-900' : 'text-gray-400'}>
+              {t("position")} *
+            </Text>
+            <TouchableOpacity
+              onPress={() => setShowDropdown({ type: "position" })}
+              className="rounded-lg px-4 py-3 flex-row items-center justify-between border"
+              style={{
+                backgroundColor: colors.surface,
+                borderColor: colors.border,
+              }}
+            >
+              <Text
+                style={{
+                  color: formData.positionId
+                    ? colors.text
+                    : colors.textTertiary,
+                }}
+              >
                 {formData.positionId
-                  ? positions.find(p => p.positionId.toString() === formData.positionId)?.positionName
-                  : 'Select position'}
+                  ? positions.find(
+                      (p) => p.positionId.toString() === formData.positionId
+                    )?.positionName
+                  : t("selectPosition")}
               </Text>
-              <Ionicons name="chevron-down" size={20} color="#6b7280" />
+              <Ionicons
+                name="chevron-down"
+                size={20}
+                color={colors.textSecondary}
+              />
             </TouchableOpacity>
-            {renderDropdown('position', positions, formData.positionId, 'positionId')}
+            {renderDropdown(
+              "position",
+              positions,
+              formData.positionId,
+              "positionId"
+            )}
           </View>
 
           {/* Hiring Manager */}
           <View className="mb-4">
-            <Text className="text-sm font-semibold text-gray-700 mb-2">Hiring Manager</Text>
-            <TouchableOpacity
-              onPress={() => setShowDropdown({ type: 'hiringManager' })}
-              className="bg-white border border-gray-300 rounded-lg px-4 py-3 flex-row items-center justify-between"
+            <Text
+              className="text-sm font-semibold mb-2"
+              style={{ color: colors.text }}
             >
-              <Text className={formData.hiringManagerId ? 'text-gray-900' : 'text-gray-400'}>
+              {t("hiringManager")}
+            </Text>
+            <TouchableOpacity
+              onPress={() => setShowDropdown({ type: "hiringManager" })}
+              className="rounded-lg px-4 py-3 flex-row items-center justify-between border"
+              style={{
+                backgroundColor: colors.surface,
+                borderColor: colors.border,
+              }}
+            >
+              <Text
+                style={{
+                  color: formData.hiringManagerId
+                    ? colors.text
+                    : colors.textTertiary,
+                }}
+              >
                 {formData.hiringManagerId
-                  ? `${employees.find(e => e.employeeId.toString() === formData.hiringManagerId)?.firstName || ''} ${employees.find(e => e.employeeId.toString() === formData.hiringManagerId)?.lastName || ''}`.trim() || 'Unknown'
-                  : 'Select hiring manager'}
+                  ? `${employees.find((e) => e.employeeId.toString() === formData.hiringManagerId)?.firstName || ""} ${employees.find((e) => e.employeeId.toString() === formData.hiringManagerId)?.lastName || ""}`.trim() ||
+                    t("unknown")
+                  : t("selectHiringManager")}
               </Text>
-              <Ionicons name="chevron-down" size={20} color="#6b7280" />
+              <Ionicons
+                name="chevron-down"
+                size={20}
+                color={colors.textSecondary}
+              />
             </TouchableOpacity>
-            {renderDropdown('hiringManager', employees, formData.hiringManagerId, 'employeeId')}
+            {renderDropdown(
+              "hiringManager",
+              employees,
+              formData.hiringManagerId,
+              "employeeId"
+            )}
           </View>
         </View>
 
         {/* Deadline & Status */}
-        <View className="bg-white rounded-lg p-4 mb-4 border border-gray-200">
-          <Text className="text-lg font-bold text-gray-900 mb-4">Deadline & Status</Text>
-          
+        <View
+          className="rounded-lg p-4 mb-4 border"
+          style={{ backgroundColor: colors.card, borderColor: colors.border }}
+        >
+          <Text
+            className="text-lg font-bold mb-4"
+            style={{ color: colors.text }}
+          >
+            {t("deadlineStatus")}
+          </Text>
+
           <View className="mb-4">
-            <Text className="text-sm font-semibold text-gray-700 mb-2">Application Deadline *</Text>
+            <Text
+              className="text-sm font-semibold mb-2"
+              style={{ color: colors.text }}
+            >
+              {t("applicationDeadline")} *
+            </Text>
             <TextInput
-              className="bg-white border border-gray-300 rounded-lg px-4 py-3 text-gray-900"
+              className="rounded-lg px-4 py-3 border"
+              style={{
+                backgroundColor: colors.surface,
+                borderColor: colors.border,
+                borderWidth: 1,
+                color: colors.text,
+              }}
               placeholder="YYYY-MM-DD"
-              placeholderTextColor="#9ca3af"
+              placeholderTextColor={colors.textTertiary}
               value={formData.applicationDeadline}
-              onChangeText={(text) => handleInputChange('applicationDeadline', text)}
+              onChangeText={(text) =>
+                handleInputChange("applicationDeadline", text)
+              }
             />
           </View>
 
           {isEdit && (
             <View className="mb-4">
-              <Text className="text-sm font-semibold text-gray-700 mb-2">Status</Text>
+              <Text
+                className="text-sm font-semibold mb-2"
+                style={{ color: colors.text }}
+              >
+                {t("status")}
+              </Text>
               <View className="flex-row gap-2">
-                {['draft', 'published', 'closed'].map((status) => (
+                {["draft", "published", "closed"].map((status) => (
                   <TouchableOpacity
                     key={status}
-                    onPress={() => handleInputChange('status', status)}
-                    className={`flex-1 px-4 py-3 rounded-lg ${
-                      formData.status === status
-                        ? 'bg-blue-600'
-                        : 'bg-gray-100'
-                    }`}
+                    onPress={() => handleInputChange("status", status)}
+                    className="flex-1 px-4 py-3 rounded-lg"
+                    style={{
+                      backgroundColor:
+                        formData.status === status
+                          ? colors.primary
+                          : colors.surface,
+                    }}
                   >
                     <Text
-                      className={`text-center font-semibold ${
-                        formData.status === status
-                          ? 'text-white'
-                          : 'text-gray-600'
-                      }`}
+                      className="text-center font-semibold"
+                      style={{
+                        color:
+                          formData.status === status ? "white" : colors.text,
+                      }}
                     >
-                      {status.charAt(0).toUpperCase() + status.slice(1)}
+                      {t(status)}
                     </Text>
                   </TouchableOpacity>
                 ))}
@@ -468,18 +830,22 @@ export default function JobFormScreen() {
         <TouchableOpacity
           onPress={handleSubmit}
           disabled={saving}
-          className={`bg-blue-600 px-6 py-4 rounded-lg mb-6 ${
-            saving ? 'opacity-50' : ''
-          }`}
+          className="px-6 py-4 rounded-lg mb-6"
+          style={{
+            backgroundColor: saving ? colors.textTertiary : colors.primary,
+            opacity: saving ? 0.5 : 1,
+          }}
         >
           {saving ? (
             <View className="flex-row items-center justify-center">
               <ActivityIndicator size="small" color="white" />
-              <Text className="text-white font-semibold ml-2">Saving...</Text>
+              <Text className="text-white font-semibold ml-2">
+                {tCommon("saving")}
+              </Text>
             </View>
           ) : (
             <Text className="text-white font-semibold text-center">
-              {isEdit ? 'Update Job' : 'Create Job'}
+              {isEdit ? t("updateJob") : t("createJob")}
             </Text>
           )}
         </TouchableOpacity>
@@ -488,11 +854,11 @@ export default function JobFormScreen() {
       {/* Backdrop for dropdown */}
       {showDropdown.type && (
         <TouchableOpacity
-          className="absolute inset-0 bg-black opacity-20"
+          className="absolute inset-0"
+          style={{ backgroundColor: "black", opacity: 0.2 }}
           onPress={() => setShowDropdown({ type: null })}
         />
       )}
     </View>
   );
 }
-

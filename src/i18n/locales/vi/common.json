@@ -40,6 +40,8 @@
   "nA": "N/A",
   "info": "Thông tin",
   "ok": "OK",
-  "remove": "Xóa"
+  "remove": "Xóa",
+  "name": "Tên",
+  "email": "Email"
 }
 

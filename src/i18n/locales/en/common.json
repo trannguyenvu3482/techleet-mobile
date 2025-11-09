@@ -40,6 +40,8 @@
   "nA": "N/A",
   "info": "Info",
   "ok": "OK",
-  "remove": "Remove"
+  "remove": "Remove",
+  "name": "Name",
+  "email": "Email"
 }
 

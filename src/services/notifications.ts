@@ -9,6 +9,8 @@ Notifications.setNotificationHandler({
     shouldShowAlert: true,
     shouldPlaySound: true,
     shouldSetBadge: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
   }),
 });
 
@@ -150,6 +152,15 @@ export class NotificationService {
     trigger: Date | number,
     data?: Record<string, unknown>
   ): Promise<string> {
+    let triggerInput: Notifications.NotificationTriggerInput | null;
+    
+    if (typeof trigger === 'number') {
+      triggerInput = trigger > 0 ? ({ seconds: trigger } as Notifications.NotificationTriggerInput) : null;
+    } else {
+      const seconds = Math.max(0, Math.floor((trigger.getTime() - Date.now()) / 1000));
+      triggerInput = seconds > 0 ? ({ seconds } as Notifications.NotificationTriggerInput) : null;
+    }
+    
     const identifier = await Notifications.scheduleNotificationAsync({
       content: {
         title,
@@ -157,7 +168,7 @@ export class NotificationService {
         data: data || {},
         sound: true,
       },
-      trigger,
+      trigger: triggerInput,
     });
     return identifier;
   }

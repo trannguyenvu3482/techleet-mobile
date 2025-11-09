@@ -1,6 +1,6 @@
 import React from 'react';
-import { ScrollView, ScrollViewProps, ViewStyle } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { ScrollView, ScrollViewProps, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useThemeStore } from '@/store/theme-store';
 import { getColors } from '@/theme/colors';
 
@@ -10,14 +10,14 @@ interface SafeAreaScrollViewProps extends ScrollViewProps {
 }
 
 export function SafeAreaScrollView({ children, className = '', ...props }: SafeAreaScrollViewProps) {
+  const insets = useSafeAreaInsets();
   const { isDark } = useThemeStore();
   const colors = getColors(isDark);
 
   return (
-    <SafeAreaView 
-      edges={['top', 'left', 'right']} 
+    <View 
       className="flex-1"
-      style={{ backgroundColor: colors.background }}
+      style={{ backgroundColor: colors.background, paddingTop: insets.top }}
     >
       <ScrollView
         className={`flex-1 ${className}`}
@@ -28,7 +28,7 @@ export function SafeAreaScrollView({ children, className = '', ...props }: SafeA
       >
         {children}
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
