@@ -10,6 +10,7 @@ export interface DashboardStats {
   interviewsThisWeek: number;
   recentApplications: number;
   recentCandidates: number;
+  totalEmployees?: number;
 }
 
 export interface StatusBreakdown {
@@ -70,73 +71,12 @@ export interface GetAnalyticsParams {
 export const analyticsAPI = {
   async getDashboardStats(params?: GetAnalyticsParams): Promise<DashboardStats> {
     const period = params?.period || '30d';
-    const now = new Date();
-    const startOfWeek = new Date(now);
-    startOfWeek.setDate(now.getDate() - now.getDay());
-    startOfWeek.setHours(0, 0, 0, 0);
 
     try {
-      const [jobsRes, applicationsRes, candidatesRes, interviewsRes] = await Promise.all([
-        api.get('/api/v1/recruitment-service/job-postings', {
-          limit: 1,
-          sortBy: 'createdAt',
-          sortOrder: 'DESC',
-        }),
-        api.get('/api/v1/recruitment-service/applications', {
-          limit: 1,
-          sortBy: 'appliedDate',
-          sortOrder: 'DESC',
-        }),
-        api.get('/api/v1/recruitment-service/candidates', {
-          limit: 1,
-          sortBy: 'candidateId',
-          sortOrder: 'DESC',
-        }),
-        api.get('/api/v1/recruitment-service/interview', {
-          limit: 100,
-          sortBy: 'scheduledAt',
-          sortOrder: 'ASC',
-        }),
-      ]);
-
-      const totalJobs = jobsRes.total || 0;
-      const activeJobs = jobsRes.data?.filter((job: any) => job.status === 'published').length || 0;
-      const totalApplications = applicationsRes.total || 0;
-      const pendingApplications = applicationsRes.data?.filter((app: any) => 
-        app.applicationStatus === 'pending' || app.applicationStatus === 'screening'
-      ).length || 0;
-      const totalCandidates = candidatesRes.total || 0;
-      const totalInterviews = interviewsRes.total || 0;
-
-      const interviewsThisWeek = interviewsRes.data?.filter((interview: any) => {
-        const scheduledDate = new Date(interview.scheduledAt);
-        return scheduledDate >= startOfWeek && scheduledDate <= now;
-      }).length || 0;
-
-      const dateFilter = getDateFilter(period);
-      const recentApplications = applicationsRes.data?.filter((app: any) => {
-        if (!dateFilter) return true;
-        const appliedDate = new Date(app.appliedAt);
-        return appliedDate >= dateFilter.start && appliedDate <= dateFilter.end;
-      }).length || 0;
-
-      const recentCandidates = candidatesRes.data?.filter((candidate: any) => {
-        if (!dateFilter) return true;
-        const createdDate = new Date(candidate.createdAt);
-        return createdDate >= dateFilter.start && createdDate <= dateFilter.end;
-      }).length || 0;
-
-      return {
-        totalJobs,
-        activeJobs,
-        totalApplications,
-        pendingApplications,
-        totalCandidates,
-        totalInterviews,
-        interviewsThisWeek,
-        recentApplications,
-        recentCandidates,
-      };
+      const response = await api.get('/api/v1/recruitment-service/analytics/dashboard/stats', {
+        period,
+      });
+      return response;
     } catch (error) {
       console.error('Error fetching dashboard stats:', error);
       throw error;
@@ -145,80 +85,14 @@ export const analyticsAPI = {
 
   async getSummary(params?: GetAnalyticsParams): Promise<AnalyticsSummary> {
     const period = params?.period || '30d';
-    const dateFilter = getDateFilter(period);
 
     try {
-      const [jobsRes, applicationsRes, candidatesRes, interviewsRes] = await Promise.all([
-        api.get('/api/v1/recruitment-service/job-postings', {
-          limit: 100,
-          sortBy: 'createdAt',
-          sortOrder: 'DESC',
-        }),
-        api.get('/api/v1/recruitment-service/applications', {
-          limit: 100,
-          sortBy: 'appliedDate',
-          sortOrder: 'DESC',
-        }),
-        api.get('/api/v1/recruitment-service/candidates', {
-          limit: 100,
-          sortBy: 'candidateId',
-          sortOrder: 'DESC',
-        }),
-        api.get('/api/v1/recruitment-service/interview', {
-          limit: 100,
-          sortBy: 'scheduledAt',
-          sortOrder: 'ASC',
-        }),
-      ]);
-
-      const totalJobs = jobsRes.total || 0;
-      const totalApplications = applicationsRes.total || 0;
-      const totalCandidates = candidatesRes.total || 0;
-      const totalInterviews = interviewsRes.total || 0;
-
-      const recentJobs = jobsRes.data?.filter((job: any) => {
-        if (!dateFilter) return true;
-        const createdDate = new Date(job.createdAt);
-        return createdDate >= dateFilter.start && createdDate <= dateFilter.end;
-      }).length || 0;
-
-      const recentApplications = applicationsRes.data?.filter((app: any) => {
-        if (!dateFilter) return true;
-        const appliedDate = new Date(app.appliedAt);
-        return appliedDate >= dateFilter.start && appliedDate <= dateFilter.end;
-      }).length || 0;
-
-      const recentCandidates = candidatesRes.data?.filter((candidate: any) => {
-        if (!dateFilter) return true;
-        const createdDate = new Date(candidate.createdAt);
-        return createdDate >= dateFilter.start && createdDate <= dateFilter.end;
-      }).length || 0;
-
-      const jobStatusBreakdown = calculateStatusBreakdown(
-        jobsRes.data || [],
-        'status'
-      ) as JobStatusBreakdown[];
-
-      const applicationStatusBreakdown = calculateStatusBreakdown(
-        applicationsRes.data || [],
-        'applicationStatus'
-      ) as ApplicationStatusBreakdown[];
-
-      const topDepartments = calculateDepartmentStats(jobsRes.data || [], applicationsRes.data || [], interviewsRes.data || []);
-
-      return {
+      const response = await api.get('/api/v1/recruitment-service/analytics/dashboard/summary', {
         period,
-        totalJobs,
-        totalApplications,
-        totalCandidates,
-        totalInterviews,
-        recentJobs,
-        recentApplications,
-        recentCandidates,
-        jobStatusBreakdown,
-        applicationStatusBreakdown,
-        topDepartments,
-      };
+        departmentId: params?.departmentId,
+        jobId: params?.jobId,
+      });
+      return response;
     } catch (error) {
       console.error('Error fetching analytics summary:', error);
       throw error;
@@ -227,24 +101,13 @@ export const analyticsAPI = {
 
   async getApplicationTrends(params?: GetAnalyticsParams): Promise<TrendData[]> {
     const period = params?.period || '30d';
-    const dateFilter = getDateFilter(period);
 
     try {
-      const applicationsRes = await api.get('/api/v1/recruitment-service/applications', {
-        limit: 100,
-        sortBy: 'appliedDate',
-        sortOrder: 'ASC',
+      const response = await api.get('/api/v1/recruitment-service/analytics/dashboard/trends', {
+        period,
+        type: 'applications',
       });
-
-      const applications = applicationsRes.data || [];
-      const filteredApplications = dateFilter
-        ? applications.filter((app: any) => {
-            const appliedDate = new Date(app.appliedAt);
-            return appliedDate >= dateFilter.start && appliedDate <= dateFilter.end;
-          })
-        : applications;
-
-      return groupByDate(filteredApplications, 'appliedAt');
+      return response;
     } catch (error) {
       console.error('Error fetching application trends:', error);
       throw error;
@@ -253,54 +116,11 @@ export const analyticsAPI = {
 
   async getHiringFunnel(jobId?: number): Promise<HiringFunnelData[]> {
     try {
-      const applicationsRes = await jobId
-        ? await api.get(`/api/v1/recruitment-service/applications/by-job-posting/${jobId}`, {
-            limit: 100,
-          })
-        : await api.get('/api/v1/recruitment-service/applications', {
-            limit: 100,
-          });
-
-      const applications = applicationsRes.data || [];
-      const total = applications.length;
-
-      const funnel: HiringFunnelData[] = [
-        {
-          stage: 'Applied',
-          count: total,
-          percentage: 100,
-        },
-        {
-          stage: 'Screening',
-          count: applications.filter((app: any) => app.applicationStatus === 'screening').length,
-          percentage: 0,
-        },
-        {
-          stage: 'Interview',
-          count: applications.filter((app: any) => 
-            app.applicationStatus === 'interview' || app.applicationStatus === 'interview_scheduled'
-          ).length,
-          percentage: 0,
-        },
-        {
-          stage: 'Offer',
-          count: applications.filter((app: any) => app.applicationStatus === 'offer').length,
-          percentage: 0,
-        },
-        {
-          stage: 'Hired',
-          count: applications.filter((app: any) => app.applicationStatus === 'hired').length,
-          percentage: 0,
-        },
-      ];
-
-      funnel.forEach((stage, index) => {
-        if (index > 0) {
-          stage.percentage = total > 0 ? Math.round((stage.count / total) * 100) : 0;
-        }
+      const response = await api.get('/api/v1/recruitment-service/analytics/dashboard/funnel', {
+        period: '30d',
+        jobId,
       });
-
-      return funnel;
+      return response;
     } catch (error) {
       console.error('Error fetching hiring funnel:', error);
       throw error;
