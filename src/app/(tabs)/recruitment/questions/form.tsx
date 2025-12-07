@@ -6,7 +6,6 @@ import {
   TextInput,
   TouchableOpacity,
   ActivityIndicator,
-  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -16,6 +15,7 @@ import { Picker } from '@react-native-picker/picker';
 import { recruitmentAPI, Question, CreateQuestionRequest, UpdateQuestionRequest } from '@/services/api/recruitment';
 import { useThemeStore } from '@/store/theme-store';
 import { getColors } from '@/theme/colors';
+import { useToast } from '@/hooks/useToast';
 
 const DIFFICULTIES = ['easy', 'medium', 'hard'];
 
@@ -32,6 +32,9 @@ export default function QuestionFormScreen() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [question, setQuestion] = useState<Question | null>(null);
+  const toast = useToast();
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
 
   const [formData, setFormData] = useState({
     content: '',
@@ -60,30 +63,73 @@ export default function QuestionFormScreen() {
             difficulty: foundQuestion.difficulty || 'medium',
           });
         } else {
-          Alert.alert(tCommon('error'), t('questionNotFound'));
+          toast.error(t('questionNotFound'));
           router.back();
         }
       }
     } catch (error) {
       console.error('Error loading data:', error);
-      Alert.alert(tCommon('error'), t('failedToLoadQuestionData'));
+      toast.error(t('failedToLoadQuestionData'));
       router.back();
     } finally {
       setLoading(false);
     }
   };
 
+  const validateField = (field: string, value: string): string => {
+    switch (field) {
+      case 'content':
+        if (!value.trim()) {
+          return t('questionContentRequired');
+        }
+        return '';
+      case 'sampleAnswer':
+        if (!value.trim()) {
+          return t('sampleAnswerRequired');
+        }
+        return '';
+      default:
+        return '';
+    }
+  };
+
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
+    
+    if (touched[field]) {
+      const error = validateField(field, value);
+      setErrors((prev) => ({ ...prev, [field]: error }));
+    }
+  };
+
+  const handleBlur = (field: string) => {
+    setTouched((prev) => ({ ...prev, [field]: true }));
+    const error = validateField(field, formData[field as keyof typeof formData]);
+    setErrors((prev) => ({ ...prev, [field]: error }));
   };
 
   const validateForm = (): boolean => {
-    if (!formData.content.trim()) {
-      Alert.alert(t('validationError'), t('questionContentRequired'));
-      return false;
-    }
-    if (!formData.sampleAnswer.trim()) {
-      Alert.alert(t('validationError'), t('sampleAnswerRequired'));
+    const newErrors: Record<string, string> = {};
+    const fieldsToValidate = ['content', 'sampleAnswer'];
+    
+    fieldsToValidate.forEach((field) => {
+      const error = validateField(field, formData[field as keyof typeof formData]);
+      if (error) {
+        newErrors[field] = error;
+      }
+    });
+
+    setErrors(newErrors);
+    setTouched(
+      fieldsToValidate.reduce((acc, field) => {
+        acc[field] = true;
+        return acc;
+      }, {} as Record<string, boolean>)
+    );
+
+    if (Object.keys(newErrors).length > 0) {
+      const firstError = Object.values(newErrors)[0];
+      toast.error(firstError);
       return false;
     }
     return true;
@@ -104,9 +150,8 @@ export default function QuestionFormScreen() {
           difficulty: formData.difficulty,
         };
         await recruitmentAPI.updateQuestion(Number(params.id), updateData);
-        Alert.alert(tCommon('success'), t('questionUpdatedSuccess'), [
-          { text: tCommon('ok'), onPress: () => router.back() },
-        ]);
+        toast.success(t('questionUpdatedSuccess'));
+        router.back();
       } else {
         const createData: CreateQuestionRequest = {
           content: formData.content.trim(),
@@ -114,13 +159,12 @@ export default function QuestionFormScreen() {
           difficulty: formData.difficulty,
         };
         await recruitmentAPI.createQuestion(createData);
-        Alert.alert(tCommon('success'), t('questionCreatedSuccess'), [
-          { text: tCommon('ok'), onPress: () => router.back() },
-        ]);
+        toast.success(t('questionCreatedSuccess'));
+        router.back();
       }
     } catch (error) {
       console.error('Error saving question:', error);
-      Alert.alert(tCommon('error'), t('failedToSaveQuestion'));
+      toast.error(t('failedToSaveQuestion'));
     } finally {
       setSaving(false);
     }
@@ -160,12 +204,22 @@ export default function QuestionFormScreen() {
               placeholderTextColor={colors.textTertiary}
               value={formData.content}
               onChangeText={(value) => handleInputChange('content', value)}
+              onBlur={() => handleBlur('content')}
               multiline
               numberOfLines={4}
               className="p-3 rounded-lg border text-base"
-              style={{ backgroundColor: colors.card, borderColor: colors.border, color: colors.text }}
+              style={{ 
+                backgroundColor: colors.card, 
+                borderColor: errors.content ? colors.error : colors.border, 
+                color: colors.text 
+              }}
               textAlignVertical="top"
             />
+            {errors.content && (
+              <Text className="text-sm mt-1" style={{ color: colors.error }}>
+                {errors.content}
+              </Text>
+            )}
           </View>
 
           {/* Sample Answer Field */}
@@ -178,12 +232,22 @@ export default function QuestionFormScreen() {
               placeholderTextColor={colors.textTertiary}
               value={formData.sampleAnswer}
               onChangeText={(value) => handleInputChange('sampleAnswer', value)}
+              onBlur={() => handleBlur('sampleAnswer')}
               multiline
               numberOfLines={6}
               className="p-3 rounded-lg border text-base"
-              style={{ backgroundColor: colors.card, borderColor: colors.border, color: colors.text }}
+              style={{ 
+                backgroundColor: colors.card, 
+                borderColor: errors.sampleAnswer ? colors.error : colors.border, 
+                color: colors.text 
+              }}
               textAlignVertical="top"
             />
+            {errors.sampleAnswer && (
+              <Text className="text-sm mt-1" style={{ color: colors.error }}>
+                {errors.sampleAnswer}
+              </Text>
+            )}
           </View>
 
           {/* Difficulty Field */}

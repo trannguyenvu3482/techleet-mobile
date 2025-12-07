@@ -166,7 +166,7 @@
   "failedToSaveQuestionSet": "Failed to save question set",
   "editQuestionSet": "Edit Question Set",
   "createQuestionSet": "Create Question Set",
-  "title": "Title",
+  "fieldTitle": "Title",
   "description": "Description",
   "enterQuestionSetTitle": "Enter question set title...",
   "enterDescriptionOptional": "Enter description (optional)...",
@@ -381,6 +381,10 @@
   "updateJob": "Update Job",
   "applied": "Applied",
   "noApplicationsForJob": "This job posting has no applications yet",
-  "noApplicationsWithStatus": "No applications with status: {{status}}"
+  "noApplicationsWithStatus": "No applications with status: {{status}}",
+  "screeningInsights": "AI Screening Insights",
+  "aiSummary": "AI Summary",
+  "keyHighlights": "Key Highlights",
+  "concerns": "Concerns & Limitations"
 }
 

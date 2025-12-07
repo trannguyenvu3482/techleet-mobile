@@ -25,6 +25,7 @@ interface Application {
   status: string;
   createdAt: string;
   score: number | null;
+  screeningScore: number | null;
 }
 
 export default function JobApplicationsScreen() {
@@ -154,11 +155,11 @@ export default function JobApplicationsScreen() {
             {t("applied")} {formatDate(item.createdAt)}
           </Text>
         </View>
-        {item.score !== null && (
+        {(typeof item.screeningScore === 'number' || typeof item.score === 'number') && (
           <View className="flex-row items-center">
             <Ionicons name="star-outline" size={14} color={colors.warning} />
             <Text className="text-xs font-semibold ml-1" style={{ color: colors.text }}>
-              {t("score")}: {item.score.toFixed(1)}
+              {t("score")}: {(item.screeningScore ?? item.score)?.toFixed(1)}
             </Text>
           </View>
         )}

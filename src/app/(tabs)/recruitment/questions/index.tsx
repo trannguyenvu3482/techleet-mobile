@@ -268,6 +268,11 @@ export default function QuestionsListScreen() {
             }
             contentContainerStyle={{ paddingBottom: 20 }}
             style={{ backgroundColor: colors.background }}
+            removeClippedSubviews={true}
+            initialNumToRender={10}
+            maxToRenderPerBatch={10}
+            windowSize={10}
+            updateCellsBatchingPeriod={50}
             ListFooterComponent={
               questions.length < total ? (
                 <View className="py-4">

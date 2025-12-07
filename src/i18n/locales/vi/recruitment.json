@@ -166,7 +166,7 @@
   "failedToSaveQuestionSet": "Không thể lưu bộ câu hỏi",
   "editQuestionSet": "Chỉnh sửa bộ câu hỏi",
   "createQuestionSet": "Tạo bộ câu hỏi",
-  "title": "Tiêu đề",
+  "fieldTitle": "Tiêu đề",
   "description": "Mô tả",
   "enterQuestionSetTitle": "Nhập tiêu đề bộ câu hỏi...",
   "enterDescriptionOptional": "Nhập mô tả (tùy chọn)...",
@@ -381,6 +381,10 @@
   "updateJob": "Cập nhật công việc",
   "applied": "Đã ứng tuyển",
   "noApplicationsForJob": "Tin tuyển dụng này chưa có ứng tuyển",
-  "noApplicationsWithStatus": "Không có ứng tuyển với trạng thái: {{status}}"
+  "noApplicationsWithStatus": "Không có ứng tuyển với trạng thái: {{status}}",
+  "screeningInsights": "Thông tin chi tiết sàng lọc AI",
+  "aiSummary": "Tóm tắt AI",
+  "keyHighlights": "Điểm nổi bật chính",
+  "concerns": "Lo ngại & Hạn chế"
 }
 

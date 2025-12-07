@@ -12,6 +12,7 @@ import { notificationService } from "@/services/notifications"
 import { reminderService } from "@/services/reminders"
 import { useThemeStore } from "@/store/theme-store"
 import { useLanguageStore } from "@/store/language-store"
+import { ToastContainer } from "@/components/ui/Toast"
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -80,6 +81,7 @@ export default function RootLayout() {
     <QueryClientProvider client={queryClient}>
       <StatusBar style={isDark ? "light" : "dark"} />
       <Stack screenOptions={{ headerShown: false }} />
+      <ToastContainer />
     </QueryClientProvider>
   )
 }

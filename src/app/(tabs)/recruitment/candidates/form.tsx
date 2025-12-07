@@ -12,7 +12,6 @@ import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
-  Alert,
   ScrollView,
   Text,
   TextInput,
@@ -20,6 +19,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useToast } from "@/hooks/useToast";
 
 export default function CandidateFormScreen() {
   const router = useRouter();
@@ -34,6 +34,7 @@ export default function CandidateFormScreen() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [candidate, setCandidate] = useState<Candidate | null>(null);
+  const toast = useToast();
 
   const [formData, setFormData] = useState({
     firstName: "",
@@ -51,6 +52,9 @@ export default function CandidateFormScreen() {
     portfolioUrl: "",
     linkedinUrl: "",
   });
+
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     loadData();
@@ -86,37 +90,81 @@ export default function CandidateFormScreen() {
       }
     } catch (error) {
       console.error("Error loading candidate:", error);
-      Alert.alert(tCommon("error"), t("failedToLoadCandidateData"));
+      toast.error(t("failedToLoadCandidateData"));
       router.back();
     } finally {
       setLoading(false);
     }
   };
 
+  const validateField = (field: string, value: string): string => {
+    switch (field) {
+      case "firstName":
+        if (!value.trim()) {
+          return t("firstNameRequired");
+        }
+        return "";
+      case "lastName":
+        if (!value.trim()) {
+          return t("lastNameRequired");
+        }
+        return "";
+      case "email":
+        if (!value.trim()) {
+          return t("emailRequired");
+        }
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(value)) {
+          return t("invalidEmail");
+        }
+        return "";
+      case "phoneNumber":
+        if (!value.trim()) {
+          return t("phoneNumberRequired");
+        }
+        return "";
+      default:
+        return "";
+    }
+  };
+
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
+    
+    if (touched[field]) {
+      const error = validateField(field, value);
+      setErrors((prev) => ({ ...prev, [field]: error }));
+    }
+  };
+
+  const handleBlur = (field: string) => {
+    setTouched((prev) => ({ ...prev, [field]: true }));
+    const error = validateField(field, formData[field as keyof typeof formData]);
+    setErrors((prev) => ({ ...prev, [field]: error }));
   };
 
   const validateForm = (): boolean => {
-    if (!formData.firstName.trim()) {
-      Alert.alert(t("validationError"), t("firstNameRequired"));
-      return false;
-    }
-    if (!formData.lastName.trim()) {
-      Alert.alert(t("validationError"), t("lastNameRequired"));
-      return false;
-    }
-    if (!formData.email.trim()) {
-      Alert.alert(t("validationError"), t("emailRequired"));
-      return false;
-    }
-    if (!formData.phoneNumber.trim()) {
-      Alert.alert(t("validationError"), t("phoneNumberRequired"));
-      return false;
-    }
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(formData.email)) {
-      Alert.alert(t("validationError"), t("invalidEmail"));
+    const newErrors: Record<string, string> = {};
+    const fieldsToValidate = ["firstName", "lastName", "email", "phoneNumber"];
+    
+    fieldsToValidate.forEach((field) => {
+      const error = validateField(field, formData[field as keyof typeof formData]);
+      if (error) {
+        newErrors[field] = error;
+      }
+    });
+
+    setErrors(newErrors);
+    setTouched(
+      fieldsToValidate.reduce((acc, field) => {
+        acc[field] = true;
+        return acc;
+      }, {} as Record<string, boolean>)
+    );
+
+    if (Object.keys(newErrors).length > 0) {
+      const firstError = Object.values(newErrors)[0];
+      toast.error(firstError);
       return false;
     }
     return true;
@@ -148,12 +196,12 @@ export default function CandidateFormScreen() {
       if (isEdit && params.id) {
         const updateData: UpdateCandidateRequest = baseData;
         await recruitmentAPI.updateCandidate(Number(params.id), updateData);
-        Alert.alert(tCommon("success"), t("candidateUpdatedSuccessfully"));
+        toast.success(t("candidateUpdatedSuccessfully"));
       } else {
         const createData: CreateCandidateRequest =
           baseData as CreateCandidateRequest;
         const newCandidate = await recruitmentAPI.createCandidate(createData);
-        Alert.alert(tCommon("success"), t("candidateCreatedSuccessfully"));
+        toast.success(t("candidateCreatedSuccessfully"));
         router.replace(`/recruitment/candidates/${newCandidate.candidateId}`);
         return;
       }
@@ -165,7 +213,7 @@ export default function CandidateFormScreen() {
         error?.response?.data?.message ||
         error?.message ||
         t("failedToSaveCandidate");
-      Alert.alert(tCommon("error"), errorMessage);
+      toast.error(errorMessage);
     } finally {
       setSaving(false);
     }
@@ -196,7 +244,7 @@ export default function CandidateFormScreen() {
         style={{
           textAlignVertical: multiline ? "top" : "center",
           backgroundColor: colors.surface,
-          borderColor: colors.border,
+          borderColor: errors[field] ? colors.error : colors.border,
           borderWidth: 1,
           color: colors.text,
         }}
@@ -206,10 +254,19 @@ export default function CandidateFormScreen() {
         placeholderTextColor={colors.textTertiary}
         value={value}
         onChangeText={(text) => handleInputChange(field, text)}
+        onBlur={() => handleBlur(field)}
         multiline={multiline}
         numberOfLines={multiline ? 4 : 1}
         keyboardType={keyboardType}
       />
+      {errors[field] && (
+        <Text
+          className="text-sm mt-1"
+          style={{ color: colors.error }}
+        >
+          {errors[field]}
+        </Text>
+      )}
     </View>
   );
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -6,18 +6,20 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
-  Alert,
   TextInput,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Picker } from '@react-native-picker/picker';
 import { recruitmentAPI, Application, JobPosting } from '@/services/api/recruitment';
 import { exportService } from '@/utils/export';
 import { useThemeStore } from '@/store/theme-store';
 import { getColors } from '@/theme/colors';
+import { useToast } from '@/hooks/useToast';
+import { EmptyState, ApplicationCardSkeleton } from '@/components/ui';
+import { FilterBottomSheet, FilterSection } from '@/components/common/FilterBottomSheet';
+import { getStatusColor, getStatusLabel } from '@/utils/status';
 
 export default function ApplicationListScreen() {
   const router = useRouter();
@@ -27,16 +29,21 @@ export default function ApplicationListScreen() {
   const { t: tCommon } = useTranslation('common');
   const { isDark } = useThemeStore();
   const colors = getColors(isDark);
+  const toast = useToast();
   const [applications, setApplications] = useState<Application[]>([]);
   const [jobs, setJobs] = useState<JobPosting[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  
+  // Filters
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [jobFilter, setJobFilter] = useState<string>(params.jobId || 'all');
   const [sortBy, setSortBy] = useState<'appliedAt' | 'score'>('appliedAt');
   const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC'>('DESC');
   const [showFilters, setShowFilters] = useState(false);
+  
   const [page, setPage] = useState(0);
   const [total, setTotal] = useState(0);
   const limit = 20;
@@ -45,8 +52,11 @@ export default function ApplicationListScreen() {
     try {
       if (!append) {
         setLoading(true);
+      } else {
+        setLoadingMore(true);
       }
-      const params: any = {
+      
+      const queryParams: any = {
         page,
         limit,
         sortBy: sortBy === 'appliedAt' ? 'appliedDate' : 'score',
@@ -54,18 +64,19 @@ export default function ApplicationListScreen() {
       };
 
       if (searchTerm.trim()) {
-        params.keyword = searchTerm.trim();
+        queryParams.keyword = searchTerm.trim();
       }
 
       if (statusFilter !== 'all') {
-        params.applicationStatus = statusFilter;
+        queryParams.applicationStatus = statusFilter;
       }
 
       if (jobFilter && jobFilter !== 'all') {
-        params.jobPostingId = Number(jobFilter);
+        queryParams.jobPostingId = Number(jobFilter);
       }
 
-      const response = await recruitmentAPI.getApplications(params);
+      const response = await recruitmentAPI.getApplications(queryParams);
+      
       if (append) {
         setApplications((prev) => [...prev, ...response.data]);
       } else {
@@ -74,9 +85,10 @@ export default function ApplicationListScreen() {
       setTotal(response.total || response.data.length);
     } catch (error) {
       console.error('Error fetching applications:', error);
-      Alert.alert(tCommon('error'), t('failedToLoadApplications'));
+      toast.error(t('failedToLoadApplications'));
     } finally {
       setLoading(false);
+      setLoadingMore(false);
       setRefreshing(false);
     }
   }, [page, searchTerm, statusFilter, jobFilter, sortBy, sortOrder]);
@@ -105,47 +117,18 @@ export default function ApplicationListScreen() {
   const onRefresh = () => {
     setRefreshing(true);
     setPage(0);
-    fetchApplications(false);
+    // fetchApplications will be triggered by page change to 0 or via simple call if already 0
+    if (page === 0) fetchApplications(false);
   };
 
   const handleLoadMore = () => {
-    if (applications.length < total && !loading) {
+    if (applications.length < total && !loading && !loadingMore) {
       setPage((prev) => prev + 1);
     }
   };
 
   const handleApplicationPress = (application: Application) => {
     router.push(`/recruitment/applications/${application.applicationId}` as any);
-  };
-
-  const getStatusColor = (status?: string) => {
-    if (!status) return '#6b7280';
-    switch (status.toLowerCase()) {
-      case 'hired':
-        return '#10b981';
-      case 'offer':
-        return '#3b82f6';
-      case 'interviewing':
-        return '#8b5cf6';
-      case 'screening':
-      case 'screening_passed':
-        return '#f59e0b';
-      case 'rejected':
-      case 'screening_failed':
-        return '#ef4444';
-      case 'submitted':
-        return '#6b7280';
-      default:
-        return '#6b7280';
-    }
-  };
-
-  const getStatusLabel = (status?: string) => {
-    if (!status) return 'N/A';
-    return status
-      .split('_')
-      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-      .join(' ');
   };
 
   const formatDate = (dateString?: string) => {
@@ -165,25 +148,41 @@ export default function ApplicationListScreen() {
   const handleExport = async () => {
     try {
       if (applications.length === 0) {
-        Alert.alert(tCommon('noData'), t('noApplications'));
+        toast.warning(t('noApplications'));
         return;
       }
       await exportService.exportApplicationsToCSV(applications);
+      toast.success(tCommon('exportedSuccessfully') || 'Exported successfully');
     } catch (error) {
       console.error('Error exporting applications:', error);
-      Alert.alert(tCommon('error'), t('failedToLoadApplications'));
+      toast.error(t('failedToLoadApplications'));
     }
   };
 
   // Debounce search effect
   useEffect(() => {
     const timeoutId = setTimeout(() => {
-      if (page === 0) {
+      if (page === 0 && searchTerm) {
         fetchApplications(false);
+      } else if (page > 0 && searchTerm) {
+        setPage(0);
       }
     }, 500);
     return () => clearTimeout(timeoutId);
   }, [searchTerm]);
+
+  const activeFiltersCount = useMemo(() => {
+    let count = 0;
+    if (statusFilter !== 'all') count++;
+    if (jobFilter !== 'all') count++;
+    return count;
+  }, [statusFilter, jobFilter]);
+
+  const resetFilters = () => {
+    setStatusFilter('all');
+    setJobFilter('all');
+    setPage(0);
+  };
 
   const renderApplicationItem = ({ item }: { item: Application }) => (
     <TouchableOpacity
@@ -214,7 +213,7 @@ export default function ApplicationListScreen() {
             className="text-xs font-semibold"
             style={{ color: getStatusColor(item.applicationStatus) }}
           >
-            {getStatusLabel(item.applicationStatus)}
+            {getStatusLabel(item.applicationStatus, t)}
           </Text>
         </View>
       </View>
@@ -238,28 +237,24 @@ export default function ApplicationListScreen() {
     </TouchableOpacity>
   );
 
-  const renderEmpty = () => (
-    <View className="items-center justify-center py-12">
-      <Ionicons name="document-text-outline" size={64} color={colors.textTertiary} />
-      <Text className="text-lg font-semibold mt-4" style={{ color: colors.textSecondary }}>
-        {t('noApplications')}
-      </Text>
-      <Text className="mt-2" style={{ color: colors.textTertiary }}>
-        {searchTerm ? t('tryAdjustingFilters') : t('noApplications')}
-      </Text>
+  const renderEmpty = () => {
+    if (loading) return null; // Skeleton handles initial loading
+    return (
+      <EmptyState
+        icon="document-text-outline"
+        title={t('noApplications')}
+        description={searchTerm ? t('tryAdjustingFilters') : t('noApplicationsDescription') || t('noApplications')}
+      />
+    );
+  };
+
+  const LoadingView = () => (
+    <View className="flex-1 px-4 mt-2">
+       {Array.from({ length: 6 }).map((_, index) => (
+          <ApplicationCardSkeleton key={index} />
+        ))}
     </View>
   );
-
-  if (loading && applications.length === 0) {
-    return (
-      <View className="flex-1" style={{ backgroundColor: colors.background, paddingTop: insets.top }}>
-        <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color={colors.primary} />
-          <Text className="mt-4" style={{ color: colors.textSecondary }}>{t('loadingApplications')}</Text>
-        </View>
-      </View>
-    );
-  }
 
   return (
     <View className="flex-1" style={{ backgroundColor: colors.background, paddingTop: insets.top }}>
@@ -270,18 +265,29 @@ export default function ApplicationListScreen() {
             <Ionicons name="arrow-back" size={24} color={colors.text} />
           </TouchableOpacity>
           <Text className="text-2xl font-bold flex-1" style={{ color: colors.text }}>{t('applications')}</Text>
-          <TouchableOpacity onPress={handleExport} className="p-2">
-            <Ionicons name="download-outline" size={24} color={colors.secondary} />
-          </TouchableOpacity>
+          <View className="flex-row gap-2">
+            <TouchableOpacity 
+                onPress={() => setShowFilters(true)}
+                className="p-2 relative"
+            >
+                <Ionicons name="filter-outline" size={24} color={activeFiltersCount > 0 ? colors.primary : colors.text} />
+                {activeFiltersCount > 0 && (
+                  <View className="absolute top-1 right-1 w-3 h-3 rounded-full bg-red-500 border border-white" />
+                )}
+            </TouchableOpacity>
+            <TouchableOpacity onPress={handleExport} className="p-2">
+                <Ionicons name="download-outline" size={24} color={colors.secondary} />
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Search Bar */}
-        <View className="relative mb-3">
+        <View className="relative">
           <Ionicons
             name="search-outline"
             size={20}
             color={colors.textSecondary}
-            style={{ position: 'absolute', left: 12, top: 12 }}
+            style={{ position: 'absolute', left: 12, top: 12, zIndex: 1 }}
           />
           <TextInput
             className="rounded-lg pl-10 pr-4 py-3"
@@ -292,203 +298,108 @@ export default function ApplicationListScreen() {
             style={{ backgroundColor: colors.card, color: colors.text }}
           />
         </View>
-
-        {/* Filters Toggle */}
-        <TouchableOpacity
-          onPress={() => setShowFilters(!showFilters)}
-          className="flex-row items-center justify-between px-4 py-3 rounded-lg mb-2"
-          style={{ backgroundColor: colors.card }}
-        >
-          <View className="flex-row items-center">
-            <Ionicons name="filter-outline" size={18} color={colors.textSecondary} />
-            <Text className="text-sm font-semibold ml-2" style={{ color: colors.text }}>{t('filters')}</Text>
-            {(statusFilter !== 'all' || jobFilter !== 'all' || sortBy !== 'appliedAt') && (
-              <View className="ml-2 rounded-full px-2 py-0.5" style={{ backgroundColor: colors.primary }}>
-                <Text className="text-xs text-white font-semibold">{t('filters.active')}</Text>
-              </View>
-            )}
-          </View>
-          <Ionicons
-            name={showFilters ? 'chevron-up' : 'chevron-down'}
-            size={20}
-            color={colors.textSecondary}
-          />
-        </TouchableOpacity>
-
-        {/* Filters & Sort Options (Collapsible) */}
-        {showFilters && (
-          <View className="rounded-lg p-3 mb-2 border" style={{ backgroundColor: colors.surface, borderColor: colors.border }}>
-            {/* Status Filter */}
-            <View className="mb-3">
-              <Text className="text-xs font-semibold mb-2" style={{ color: colors.text }}>{tCommon('filter')}:</Text>
-              <View className="flex-row gap-2 flex-wrap">
-                {[
-                  { value: 'all', label: t('filters.all') },
-                  { value: 'pending', label: t('status.pending') },
-                  { value: 'reviewing', label: t('status.reviewing') },
-                  { value: 'interview', label: t('status.interview') },
-                  { value: 'accepted', label: t('status.accepted') },
-                  { value: 'rejected', label: t('status.rejected') },
-                ].map((filter) => (
-                  <TouchableOpacity
-                    key={filter.value}
-                    onPress={() => {
-                      setStatusFilter(filter.value);
-                      setPage(0);
-                    }}
-                    className="px-3 py-2 rounded-lg"
-                    style={{
-                      backgroundColor: statusFilter === filter.value ? colors.primary : colors.card,
-                    }}
-                  >
-                    <Text
-                      className="text-xs font-semibold"
-                      style={{
-                        color: statusFilter === filter.value ? 'white' : colors.textSecondary,
-                      }}
-                    >
-                      {filter.label}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-
-            {/* Job Filter */}
-            {jobs.length > 0 && (
-              <View className="mb-3">
-                <Text className="text-xs font-semibold mb-2" style={{ color: colors.text }}>{t('jobs')}:</Text>
-                <View className="flex-row gap-2 flex-wrap">
-                  <TouchableOpacity
-                    onPress={() => {
-                      setJobFilter('all');
-                      setPage(0);
-                    }}
-                    className="px-3 py-2 rounded-lg"
-                    style={{
-                      backgroundColor: jobFilter === 'all' ? colors.secondary : colors.card,
-                    }}
-                  >
-                    <Text
-                      className="text-xs font-semibold"
-                      style={{
-                        color: jobFilter === 'all' ? 'white' : colors.textSecondary,
-                      }}
-                    >
-                      {t('allJobs')}
-                    </Text>
-                  </TouchableOpacity>
-                  {jobs.map((job) => (
-                    <TouchableOpacity
-                      key={job.jobPostingId}
-                      onPress={() => {
-                        setJobFilter(job.jobPostingId.toString());
-                        setPage(0);
-                      }}
-                      className="px-3 py-2 rounded-lg"
-                      style={{
-                        backgroundColor: jobFilter === job.jobPostingId.toString() ? colors.secondary : colors.card,
-                      }}
-                    >
-                      <Text
-                        className="text-xs font-semibold"
-                        style={{
-                          color: jobFilter === job.jobPostingId.toString() ? 'white' : colors.textSecondary,
-                          maxWidth: 120,
-                        }}
-                        numberOfLines={1}
-                      >
-                        {job.title}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </View>
-            )}
-
-            {/* Sort Options */}
-            <View>
-              <Text className="text-xs font-semibold mb-2" style={{ color: colors.text }}>{t('sortBy')}</Text>
-              <View className="flex-row gap-2 flex-wrap">
-                {[
-                  { value: 'appliedAt', label: t('sortByOptions.appliedDate') },
-                  { value: 'score', label: t('sortByOptions.score') },
-                ].map((option) => (
-                  <TouchableOpacity
-                    key={option.value}
-                    onPress={() => {
-                      if (sortBy === option.value) {
-                        setSortOrder(sortOrder === 'ASC' ? 'DESC' : 'ASC');
-                      } else {
-                        setSortBy(option.value as 'appliedAt' | 'score');
-                        setSortOrder('DESC');
-                      }
-                      setPage(0);
-                    }}
-                    className="px-3 py-2 rounded-lg"
-                    style={{
-                      backgroundColor: sortBy === option.value ? colors.warning : colors.card,
-                    }}
-                  >
-                    <View className="flex-row items-center">
-                      <Text
-                        className="text-xs font-semibold"
-                        style={{
-                          color: sortBy === option.value ? 'white' : colors.textSecondary,
-                        }}
-                      >
-                        {option.label}
-                      </Text>
-                      {sortBy === option.value && (
-                        <Ionicons
-                          name={sortOrder === 'ASC' ? 'arrow-up' : 'arrow-down'}
-                          size={14}
-                          color="white"
-                          style={{ marginLeft: 4 }}
-                        />
-                      )}
-                    </View>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-          </View>
+      </View>
+      
+      {/* List */}
+      <View className="flex-1">
+        {loading && page === 0 ? <LoadingView /> : (
+            <FlatList
+                data={applications}
+                renderItem={renderApplicationItem}
+                keyExtractor={(item) => item.applicationId.toString()}
+                contentContainerStyle={{ padding: 16, flexGrow: 1 }}
+                ListEmptyComponent={renderEmpty}
+                refreshControl={
+                <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+                }
+                onEndReached={handleLoadMore}
+                onEndReachedThreshold={0.5}
+                ListFooterComponent={
+                    loadingMore ? (
+                        <View className="py-4 items-center">
+                            <ActivityIndicator size="small" color={colors.primary} />
+                        </View>
+                    ) : (
+                        <View className="h-8" /> 
+                    )
+                }
+            />
         )}
       </View>
 
-      {/* Applications List */}
-      <FlatList
-        data={applications}
-        renderItem={renderApplicationItem}
-        keyExtractor={(item) => item.applicationId.toString()}
-        contentContainerStyle={{ padding: 16, flexGrow: 1 }}
-        ListEmptyComponent={renderEmpty}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-        ListFooterComponent={
-          applications.length < total && applications.length > 0 ? (
-            <View className="py-4">
-              <TouchableOpacity
-                onPress={handleLoadMore}
-                disabled={loading}
-                className="px-4 py-2 rounded-lg items-center"
-                style={{
-                  backgroundColor: colors.primary,
-                  opacity: loading ? 0.5 : 1,
-                }}
-              >
-                {loading ? (
-                  <ActivityIndicator size="small" color="white" />
-                ) : (
-                  <Text className="text-white font-semibold">{t('loadMore')}</Text>
-                )}
-              </TouchableOpacity>
+      {/* Filter Bottom Sheet */}
+      <FilterBottomSheet
+        visible={showFilters}
+        onClose={() => setShowFilters(false)}
+        onReset={resetFilters}
+        onApply={() => {
+            setShowFilters(false);
+            setPage(0); // Trigger fetch
+        }}
+      >
+        <FilterSection
+            title={tCommon('status')}
+            selectedValue={statusFilter}
+            onSelect={setStatusFilter}
+            options={[
+              { value: 'all', label: t('filters.all') },
+              { value: 'pending', label: t('status.pending') },
+              { value: 'reviewing', label: t('status.reviewing') },
+              { value: 'interview', label: t('status.interview') },
+              { value: 'accepted', label: t('status.accepted') },
+              { value: 'rejected', label: t('status.rejected') },
+            ]}
+        />
+        
+        {jobs.length > 0 && (
+             <FilterSection
+                title={t('jobs')}
+                selectedValue={jobFilter}
+                onSelect={setJobFilter}
+                options={[
+                    { value: 'all', label: t('allJobs') },
+                    ...jobs.map(job => ({ value: job.jobPostingId.toString(), label: job.title }))
+                ]}
+            />
+        )}
+         
+         <FilterSection
+            title={t('sortBy')}
+            selectedValue={sortBy}
+            onSelect={(val) => setSortBy(val as any)}
+            options={[
+                  { value: 'appliedAt', label: t('sortByOptions.appliedDate') },
+                  { value: 'score', label: t('sortByOptions.score') },
+            ]}
+         />
+
+        <View className="mt-2">
+            <Text className="text-sm font-bold mb-3" style={{ color: colors.text }}>{t('sortOrder')}</Text>
+            <View className="flex-row gap-3">
+                <TouchableOpacity 
+                    onPress={() => setSortOrder('ASC')}
+                    className={`flex-1 py-3 rounded-lg border items-center ${sortOrder === 'ASC' ? 'bg-primary border-primary' : 'bg-transparent border-gray-200'}`}
+                    style={{ 
+                        backgroundColor: sortOrder === 'ASC' ? colors.primary : 'transparent',
+                        borderColor: sortOrder === 'ASC' ? colors.primary : colors.border 
+                    }}
+                >
+                    <Text style={{ color: sortOrder === 'ASC' ? 'white' : colors.text }}>Ascending</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                    onPress={() => setSortOrder('DESC')}
+                    className={`flex-1 py-3 rounded-lg border items-center ${sortOrder === 'DESC' ? 'bg-primary border-primary' : 'bg-transparent border-gray-200'}`}
+                     style={{ 
+                        backgroundColor: sortOrder === 'DESC' ? colors.primary : 'transparent',
+                        borderColor: sortOrder === 'DESC' ? colors.primary : colors.border 
+                    }}
+                >
+                    <Text style={{ color: sortOrder === 'DESC' ? 'white' : colors.text }}>Descending</Text>
+                </TouchableOpacity>
             </View>
-          ) : null
-        }
-      />
+        </View>
+
+      </FilterBottomSheet>
     </View>
   );
 }
-

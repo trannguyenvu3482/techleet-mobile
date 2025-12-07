@@ -393,30 +393,6 @@ export default function JobDetailScreen() {
                 {formatDate(job.updatedAt)}
               </Text>
             </View>
-            {job.educationLevel && (
-              <View className="flex-row justify-between">
-                <Text className="text-sm" style={{ color: colors.textSecondary }}>{t('educationLevel')}</Text>
-                <Text className="text-sm font-semibold" style={{ color: colors.text }}>
-                  {job.educationLevel}
-                </Text>
-              </View>
-            )}
-            {job.minExperience !== undefined && job.maxExperience !== undefined && (
-              <View className="flex-row justify-between">
-                <Text className="text-sm" style={{ color: colors.textSecondary }}>{t('experienceRange')}</Text>
-                <Text className="text-sm font-semibold" style={{ color: colors.text }}>
-                  {job.minExperience} - {job.maxExperience} {t('years')}
-                </Text>
-              </View>
-            )}
-            {job.skills && (
-              <View className="flex-row justify-between">
-                <Text className="text-sm" style={{ color: colors.textSecondary }}>{t('skills')}</Text>
-                <Text className="text-sm font-semibold flex-1 text-right" style={{ color: colors.text }}>
-                  {job.skills}
-                </Text>
-              </View>
-            )}
           </View>
         </View>
       </ScrollView>

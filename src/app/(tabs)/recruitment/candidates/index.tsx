@@ -1,27 +1,25 @@
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
-  Candidate,
-  GetCandidatesParams,
-  JobPosting,
-  recruitmentAPI,
-} from "@/services/api/recruitment";
-import { useThemeStore } from "@/store/theme-store";
-import { getColors } from "@/theme/colors";
-import { exportService } from "@/utils/export";
-import { Ionicons } from "@expo/vector-icons";
-import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useCallback, useEffect, useState } from "react";
-import { useTranslation } from "react-i18next";
-import {
-  ActivityIndicator,
-  Alert,
-  FlatList,
-  RefreshControl,
-  Text,
-  TextInput,
-  TouchableOpacity,
   View,
-} from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+  Text,
+  FlatList,
+  TouchableOpacity,
+  ActivityIndicator,
+  RefreshControl,
+  TextInput,
+  Alert,
+} from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useTranslation } from 'react-i18next';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { recruitmentAPI, GetCandidatesParams, JobPosting, Candidate } from '@/services/api/recruitment';
+import { exportService } from '@/utils/export';
+import { useThemeStore } from '@/store/theme-store';
+import { getColors } from '@/theme/colors';
+import { EmptyState, CandidateCardSkeleton } from '@/components/ui';
+import { FilterBottomSheet, FilterSection } from '@/components/common/FilterBottomSheet';
+import { getStatusColor, getStatusLabel, getStatusBackground } from '@/utils/status';
 
 interface CandidateListItem {
   candidateId: number;
@@ -39,16 +37,17 @@ export default function CandidateListScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ jobId?: string }>();
   const insets = useSafeAreaInsets();
-  const { t } = useTranslation("recruitment");
-  const { t: tCommon } = useTranslation("common");
+  const { t } = useTranslation('recruitment');
+  const { t: tCommon } = useTranslation('common');
   const { isDark } = useThemeStore();
   const colors = getColors(isDark);
   const [candidates, setCandidates] = useState<CandidateListItem[]>([]);
   const [jobs, setJobs] = useState<JobPosting[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [jobFilter, setJobFilter] = useState<string>(params.jobId || "all");
+  const [searchTerm, setSearchTerm] = useState('');
+  const [jobFilter, setJobFilter] = useState<string>(params.jobId || 'all');
   const [sortBy, setSortBy] = useState<
     | "candidateId"
     | "firstName"
@@ -57,7 +56,7 @@ export default function CandidateListScreen() {
     | "yearsOfExperience"
     | "expectedSalary"
   >("candidateId");
-  const [sortOrder, setSortOrder] = useState<"ASC" | "DESC">("DESC");
+  const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC'>('DESC');
   const [showFilters, setShowFilters] = useState(false);
   const [page, setPage] = useState(0);
   const [total, setTotal] = useState(0);
@@ -68,48 +67,50 @@ export default function CandidateListScreen() {
       try {
         if (!append) {
           setLoading(true);
+        } else {
+          setLoadingMore(true);
         }
 
-        if (jobId && jobId !== "all") {
-          // Fetch candidates by job posting - this doesn't support pagination yet
-          // So we'll fetch all and paginate client-side
-          const response = await recruitmentAPI.getApplicationsByJobId(
-            Number(jobId)
-          );
-          const candidateList: CandidateListItem[] = response.data.map(
-            (app) => ({
-              candidateId: app.candidateId,
-              fullname: `${app.firstName} ${app.lastName}`,
-              email: app.email,
-              status: app.status,
-              createdAt: app.createdAt,
-              score: app.score,
-              applicationId: app.applicationId,
-            })
-          );
-
-          // Filter by search term if provided
-          let filtered = candidateList;
-          if (keyword && keyword.trim()) {
-            const lowerKeyword = keyword.toLowerCase();
-            filtered = candidateList.filter(
-              (c) =>
-                c.fullname.toLowerCase().includes(lowerKeyword) ||
-                c.email.toLowerCase().includes(lowerKeyword)
+        if (jobId && jobId !== 'all') {
+            // Fetch candidates by job posting - this doesn't support pagination yet
+            // So we'll fetch all and paginate client-side
+            const response = await recruitmentAPI.getApplicationsByJobId(
+              Number(jobId)
             );
-          }
-
-          // Client-side pagination
-          const start = page * limit;
-          const end = start + limit;
-          const paginated = filtered.slice(start, end);
-
-          if (append) {
-            setCandidates((prev) => [...prev, ...paginated]);
-          } else {
-            setCandidates(paginated);
-          }
-          setTotal(filtered.length);
+            const candidateList: CandidateListItem[] = response.data.map(
+              (app) => ({
+                candidateId: app.candidateId,
+                fullname: `${app.firstName} ${app.lastName}`,
+                email: app.email,
+                status: app.status,
+                createdAt: app.createdAt,
+                score: app.score,
+                applicationId: app.applicationId,
+              })
+            );
+  
+            // Filter by search term if provided
+            let filtered = candidateList;
+            if (keyword && keyword.trim()) {
+              const lowerKeyword = keyword.toLowerCase();
+              filtered = candidateList.filter(
+                (c) =>
+                  c.fullname.toLowerCase().includes(lowerKeyword) ||
+                  c.email.toLowerCase().includes(lowerKeyword)
+              );
+            }
+  
+            // Client-side pagination
+            const start = page * limit;
+            const end = start + limit;
+            const paginated = filtered.slice(start, end);
+  
+            if (append) {
+              setCandidates((prev) => [...prev, ...paginated]);
+            } else {
+              setCandidates(paginated);
+            }
+            setTotal(filtered.length);
         } else {
           // Fetch all candidates with pagination
           const params: GetCandidatesParams = {
@@ -143,6 +144,7 @@ export default function CandidateListScreen() {
         Alert.alert("Error", "Failed to load candidates");
       } finally {
         setLoading(false);
+        setLoadingMore(false);
         setRefreshing(false);
       }
     },
@@ -175,10 +177,12 @@ export default function CandidateListScreen() {
   // Debounce search effect
   useEffect(() => {
     const timeoutId = setTimeout(() => {
-      if (page === 0) {
+      if (page === 0 && searchTerm) {
         const keyword = searchTerm.trim() || undefined;
         const jobId = jobFilter !== "all" ? jobFilter : undefined;
         fetchCandidates(keyword, jobId, false);
+      } else if (page > 0 && searchTerm) {
+        setPage(0);
       }
     }, 500);
     return () => clearTimeout(timeoutId);
@@ -187,13 +191,11 @@ export default function CandidateListScreen() {
   const onRefresh = () => {
     setRefreshing(true);
     setPage(0);
-    const keyword = searchTerm.trim() || undefined;
-    const jobId = jobFilter !== "all" ? jobFilter : undefined;
-    fetchCandidates(keyword, jobId, false);
+    // Triggered by useEffect when page changes to 0
   };
 
   const handleLoadMore = () => {
-    if (candidates.length < total && !loading) {
+    if (candidates.length < total && !loading && !loadingMore) {
       setPage((prev) => prev + 1);
     }
   };
@@ -230,32 +232,6 @@ export default function CandidateListScreen() {
       console.error("Error exporting candidates:", error);
       Alert.alert("Error", "Failed to export candidates");
     }
-  };
-
-  const getStatusColor = (status?: string) => {
-    if (!status) return "#6b7280";
-    switch (status.toLowerCase()) {
-      case "hired":
-        return "#10b981";
-      case "offer":
-        return "#3b82f6";
-      case "interviewing":
-        return "#8b5cf6";
-      case "screening":
-        return "#f59e0b";
-      case "rejected":
-        return "#ef4444";
-      default:
-        return "#6b7280";
-    }
-  };
-
-  const getStatusLabel = (status?: string) => {
-    if (!status) return "N/A";
-    return status
-      .split("_")
-      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-      .join(" ");
   };
 
   const formatDate = (dateString: string) => {
@@ -304,13 +280,13 @@ export default function CandidateListScreen() {
         {item.status && (
           <View
             className="px-3 py-1 rounded-full ml-2"
-            style={{ backgroundColor: `${getStatusColor(item.status)}20` }}
+            style={{ backgroundColor: getStatusBackground(item.status) }}
           >
             <Text
               className="text-xs font-semibold"
               style={{ color: getStatusColor(item.status) }}
             >
-              {getStatusLabel(item.status)}
+              {getStatusLabel(item.status, t)}
             </Text>
           </View>
         )}
@@ -345,36 +321,37 @@ export default function CandidateListScreen() {
     </TouchableOpacity>
   );
 
-  const renderEmpty = () => (
-    <View className="items-center justify-center py-12">
-      <Ionicons name="people-outline" size={64} color={colors.textTertiary} />
-      <Text
-        className="text-lg font-semibold mt-4"
-        style={{ color: colors.textSecondary }}
-      >
-        {t("noCandidates")}
-      </Text>
-      <Text className="mt-2" style={{ color: colors.textTertiary }}>
-        {searchTerm ? t("tryAdjustingFilters") : t("noCandidates")}
-      </Text>
+  const renderEmpty = () => {
+    if (loading) return null;
+    return (
+      <EmptyState
+        icon="people-outline"
+        title={t("noCandidates")}
+        description={searchTerm ? t("tryAdjustingFilters") : t("addCandidate")}
+        actionLabel={!searchTerm ? t("createCandidate") : undefined}
+        onAction={!searchTerm ? () => router.push('/recruitment/candidates/form') : undefined}
+      />
+    );
+  };
+
+  const LoadingView = () => (
+    <View className="flex-1 px-4 mt-2">
+       {Array.from({ length: 6 }).map((_, index) => (
+          <CandidateCardSkeleton key={index} />
+        ))}
     </View>
   );
 
-  if (loading && candidates.length === 0) {
-    return (
-      <View
-        className="flex-1"
-        style={{ backgroundColor: colors.background, paddingTop: insets.top }}
-      >
-        <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color={colors.primary} />
-          <Text className="mt-4" style={{ color: colors.textSecondary }}>
-            {t("loadingCandidates")}
-          </Text>
-        </View>
-      </View>
-    );
-  }
+  const activeFiltersCount = useMemo(() => {
+    let count = 0;
+    if (jobFilter !== 'all') count++;
+    return count;
+  }, [jobFilter]);
+
+  const resetFilters = () => {
+    setJobFilter('all');
+    setPage(0);
+  };
 
   return (
     <View
@@ -400,6 +377,12 @@ export default function CandidateListScreen() {
             {t("candidates")}
           </Text>
           <View className="flex-row gap-2">
+            <TouchableOpacity onPress={() => setShowFilters(true)} className="p-2 relative">
+               <Ionicons name="filter-outline" size={24} color={activeFiltersCount > 0 ? colors.primary : colors.secondary} />
+                {activeFiltersCount > 0 && (
+                  <View className="absolute top-1 right-1 w-3 h-3 rounded-full bg-red-500 border border-white" />
+                )}
+            </TouchableOpacity>
             <TouchableOpacity onPress={handleExport} className="p-2">
               <Ionicons
                 name="download-outline"
@@ -434,207 +417,70 @@ export default function CandidateListScreen() {
             style={{ backgroundColor: colors.card, color: colors.text }}
           />
         </View>
-
-        {/* Job Filter */}
-        {jobs.length > 0 && (
-          <View className="flex-row gap-2 mb-2 flex-wrap">
-            <TouchableOpacity
-              onPress={() => {
-                setJobFilter("all");
-                setPage(0);
-              }}
-              className="px-3 py-2 rounded-lg"
-              style={{
-                backgroundColor:
-                  jobFilter === "all" ? colors.primary : colors.card,
-              }}
-            >
-              <Text
-                className="text-xs font-semibold"
-                style={{
-                  color: jobFilter === "all" ? "white" : colors.textSecondary,
-                }}
-              >
-                {t("filters.all")}
-              </Text>
-            </TouchableOpacity>
-            {jobs.map((job) => (
-              <TouchableOpacity
-                key={job.jobPostingId}
-                onPress={() => {
-                  setJobFilter(job.jobPostingId.toString());
-                  setPage(0);
-                }}
-                className="px-3 py-2 rounded-lg"
-                style={{
-                  backgroundColor:
-                    jobFilter === job.jobPostingId.toString()
-                      ? colors.primary
-                      : colors.card,
-                }}
-              >
-                <Text
-                  className="text-xs font-semibold"
-                  style={{
-                    color:
-                      jobFilter === job.jobPostingId.toString()
-                        ? "white"
-                        : colors.textSecondary,
-                    maxWidth: 100,
-                  }}
-                  numberOfLines={1}
-                >
-                  {job.title}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        )}
-
-        {/* Filters Toggle */}
-        <TouchableOpacity
-          onPress={() => setShowFilters(!showFilters)}
-          className="flex-row items-center justify-between px-4 py-3 rounded-lg mb-2"
-          style={{ backgroundColor: colors.card }}
-        >
-          <View className="flex-row items-center">
-            <Ionicons
-              name="filter-outline"
-              size={18}
-              color={colors.textSecondary}
-            />
-            <Text
-              className="text-sm font-semibold ml-2"
-              style={{ color: colors.text }}
-            >
-              {t("filters")}
-            </Text>
-          </View>
-          <Ionicons
-            name={showFilters ? "chevron-up" : "chevron-down"}
-            size={20}
-            color={colors.textSecondary}
-          />
-        </TouchableOpacity>
-
-        {/* Filters & Sort Options (Collapsible) */}
-        {showFilters && (
-          <View
-            className="rounded-lg p-3 mb-2 border"
-            style={{
-              backgroundColor: colors.surface,
-              borderColor: colors.border,
-            }}
-          >
-            {/* Sort Options */}
-            <View className="mb-3">
-              <Text
-                className="text-xs font-semibold mb-2"
-                style={{ color: colors.text }}
-              >
-                {t("sortBy")}
-              </Text>
-              <View className="flex-row gap-2 flex-wrap">
-                {[
-                  {
-                    value: "candidateId",
-                    label: t("sortByOptions.candidateId"),
-                  },
-                  { value: "firstName", label: t("sortByOptions.firstName") },
-                  { value: "lastName", label: t("sortByOptions.lastName") },
-                  {
-                    value: "appliedDate",
-                    label: t("sortByOptions.appliedDate"),
-                  },
-                  {
-                    value: "yearsOfExperience",
-                    label: t("sortByOptions.yearsOfExperience"),
-                  },
-                  {
-                    value: "expectedSalary",
-                    label: t("sortByOptions.expectedSalary"),
-                  },
-                ].map((option) => (
-                  <TouchableOpacity
-                    key={option.value}
-                    onPress={() => {
-                      if (sortBy === option.value) {
-                        setSortOrder(sortOrder === "ASC" ? "DESC" : "ASC");
-                      } else {
-                        setSortBy(option.value as any);
-                        setSortOrder("DESC");
-                      }
-                      setPage(0);
-                    }}
-                    className="px-3 py-2 rounded-lg"
-                    style={{
-                      backgroundColor:
-                        sortBy === option.value ? colors.warning : colors.card,
-                    }}
-                  >
-                    <View className="flex-row items-center">
-                      <Text
-                        className="text-xs font-semibold"
-                        style={{
-                          color:
-                            sortBy === option.value
-                              ? "white"
-                              : colors.textSecondary,
-                        }}
-                      >
-                        {option.label}
-                      </Text>
-                      {sortBy === option.value && (
-                        <Ionicons
-                          name={sortOrder === "ASC" ? "arrow-up" : "arrow-down"}
-                          size={14}
-                          color="white"
-                          style={{ marginLeft: 4 }}
-                        />
-                      )}
-                    </View>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-          </View>
-        )}
       </View>
 
       {/* Candidates List */}
-      <FlatList
-        data={candidates}
-        renderItem={renderCandidateItem}
-        keyExtractor={(item) => item.candidateId.toString()}
-        contentContainerStyle={{ padding: 16, flexGrow: 1 }}
-        ListEmptyComponent={renderEmpty}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-        ListFooterComponent={
-          candidates.length < total && candidates.length > 0 ? (
-            <View className="py-4">
-              <TouchableOpacity
-                onPress={handleLoadMore}
-                disabled={loading}
-                className="px-4 py-2 rounded-lg items-center"
-                style={{
-                  backgroundColor: colors.primary,
-                  opacity: loading ? 0.5 : 1,
-                }}
-              >
-                {loading ? (
-                  <ActivityIndicator size="small" color="white" />
-                ) : (
-                  <Text className="text-white font-semibold">
-                    {t("loadMore")}
-                  </Text>
-                )}
-              </TouchableOpacity>
-            </View>
-          ) : null
-        }
-      />
+       <View className="flex-1">
+        {loading && page === 0 ? <LoadingView /> : (
+            <FlatList
+                data={candidates}
+                renderItem={renderCandidateItem}
+                keyExtractor={(item) => item.candidateId.toString()}
+                contentContainerStyle={{ padding: 16, flexGrow: 1 }}
+                ListEmptyComponent={renderEmpty}
+                refreshControl={
+                <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+                }
+                onEndReached={handleLoadMore}
+                onEndReachedThreshold={0.5}
+                ListFooterComponent={
+                    loadingMore ? (
+                        <View className="py-4 items-center">
+                            <ActivityIndicator size="small" color={colors.primary} />
+                        </View>
+                    ) : (
+                        <View className="h-8" />
+                    )
+                }
+            />
+        )}
+      </View>
+
+      <FilterBottomSheet
+        visible={showFilters}
+        onClose={() => setShowFilters(false)}
+        onReset={resetFilters}
+        onApply={() => {
+            setShowFilters(false);
+            setPage(0);
+        }}
+      >
+        {jobs.length > 0 && (
+             <FilterSection
+                title={t('jobs')}
+                selectedValue={jobFilter}
+                onSelect={setJobFilter}
+                options={[
+                    { value: 'all', label: t('allJobs') },
+                    ...jobs.map(job => ({ value: job.jobPostingId.toString(), label: job.title }))
+                ]}
+            />
+        )}
+
+         <FilterSection
+            title={t('sortBy')}
+            selectedValue={sortBy}
+            onSelect={(val) => setSortBy(val as any)}
+            options={[
+                  { value: "candidateId", label: t("sortByOptions.candidateId") },
+                  { value: "firstName", label: t("sortByOptions.firstName") },
+                  { value: "lastName", label: t("sortByOptions.lastName") },
+                  { value: "appliedDate", label: t("sortByOptions.appliedDate") },
+                  { value: "yearsOfExperience", label: t("sortByOptions.yearsOfExperience") },
+                  { value: "expectedSalary", label: t("sortByOptions.expectedSalary") },
+            ]}
+         />
+      </FilterBottomSheet>
     </View>
   );
 }

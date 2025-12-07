@@ -768,6 +768,54 @@ export default function CandidateDetailScreen() {
                     </Text>
                   </View>
                 )}
+
+                {/* AI Screening Insights */}
+                {(app.aiSummary || (app.keyHighlights && app.keyHighlights.length > 0) || (app.concerns && app.concerns.length > 0)) && (
+                   <View className="mt-3 pt-3 border-t" style={{ borderTopColor: colors.border }}>
+                      <Text className="text-sm font-bold mb-2" style={{ color: colors.text }}>
+                         {t("screeningInsights")}
+                      </Text>
+                      
+                      {app.aiSummary && (
+                         <View className="mb-2">
+                            <Text className="text-xs font-semibold mb-1" style={{ color: colors.textSecondary }}>
+                               {t("aiSummary")}
+                            </Text>
+                            <Text className="text-xs italic" style={{ color: colors.text }}>
+                               {app.aiSummary}
+                            </Text>
+                         </View>
+                      )}
+
+                      {app.keyHighlights && app.keyHighlights.length > 0 && (
+                         <View className="mb-2">
+                            <Text className="text-xs font-semibold mb-1" style={{ color: colors.success }}>
+                               {t("keyHighlights")}
+                            </Text>
+                            {app.keyHighlights.map((highlight, index) => (
+                               <View key={`highlight-${index}`} className="flex-row items-start mb-1">
+                                  <Ionicons name="checkmark-circle-outline" size={12} color={colors.success} style={{ marginTop: 2, marginRight: 4 }} />
+                                  <Text className="text-xs flex-1" style={{ color: colors.text }}>{highlight}</Text>
+                               </View>
+                            ))}
+                         </View>
+                      )}
+
+                      {app.concerns && app.concerns.length > 0 && (
+                         <View>
+                            <Text className="text-xs font-semibold mb-1" style={{ color: colors.error }}>
+                               {t("concerns")}
+                            </Text>
+                            {app.concerns.map((concern, index) => (
+                               <View key={`concern-${index}`} className="flex-row items-start mb-1">
+                                  <Ionicons name="alert-circle-outline" size={12} color={colors.error} style={{ marginTop: 2, marginRight: 4 }} />
+                                  <Text className="text-xs flex-1" style={{ color: colors.text }}>{concern}</Text>
+                               </View>
+                            ))}
+                         </View>
+                      )}
+                   </View>
+                )}
               </TouchableOpacity>
             ))}
           </View>

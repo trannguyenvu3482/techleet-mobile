@@ -43,10 +43,6 @@ export interface CreateJobPostingRequest {
   location: string;
   employmentType: string;
   experienceLevel: string;
-  skills: string;
-  minExperience: number;
-  maxExperience: number;
-  educationLevel: string;
   departmentId: number;
   positionId: number;
   hiringManagerId: number;
@@ -64,10 +60,6 @@ export interface UpdateJobPostingRequest {
   location?: string;
   employmentType?: string;
   experienceLevel?: string;
-  skills?: string;
-  minExperience?: number;
-  maxExperience?: number;
-  educationLevel?: string;
   departmentId?: number;
   positionId?: number;
   hiringManagerId?: number;
@@ -190,6 +182,10 @@ export interface Application {
   candidate?: Candidate;
   jobPosting?: JobPosting;
   score?: number;
+  screeningScore?: number;
+  aiSummary?: string;
+  keyHighlights?: string[];
+  concerns?: string[];
 }
 
 export interface CreateApplicationRequest {
@@ -593,6 +589,7 @@ export const recruitmentAPI = {
       status: string;
       createdAt: string;
       score: number | null;
+      screeningScore: number | null;
     }[]
   }> {
     return api.get(`/api/v1/recruitment-service/applications/job/${jobId}`);

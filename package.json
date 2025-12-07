@@ -15,7 +15,7 @@
     "clean": "expo prebuild --clean",
     "lint": "expo lint",
     "prebuild": "expo prebuild",
-    "prepare": "husky",
+    "prepare": "husky || true",
     "start": "expo start",
     "submit": "eas submit",
     "web": "expo start --web"

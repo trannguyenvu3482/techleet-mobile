@@ -1,5 +1,8 @@
 import React from 'react';
-import { TouchableOpacity, Text, ActivityIndicator, View } from 'react-native';
+import { TouchableOpacity, Text, ActivityIndicator, View, StyleSheet } from 'react-native';
+import * as Haptics from 'expo-haptics';
+import { useThemeStore } from '@/store/theme-store';
+import { getColors } from '@/theme/colors';
 
 interface ButtonProps {
   title: string;
@@ -18,32 +21,102 @@ export function Button({
   loading = false,
   className = '',
 }: ButtonProps) {
-  const baseClasses = 'py-4 px-6 rounded-lg items-center justify-center';
-  const variantClasses = {
-    primary: 'bg-blue-600',
-    secondary: 'bg-gray-600',
-    outline: 'bg-transparent border-2 border-blue-600',
+  const { isDark } = useThemeStore();
+  const colors = getColors(isDark);
+
+  const getBackgroundColor = (): string => {
+    if (disabled || loading) {
+      return colors.textTertiary;
+    }
+    switch (variant) {
+      case 'primary':
+        return colors.primary;
+      case 'secondary':
+        return colors.secondary;
+      case 'outline':
+        return 'transparent';
+      default:
+        return colors.primary;
+    }
   };
-  const textVariantClasses = {
-    primary: 'text-white',
-    secondary: 'text-white',
-    outline: 'text-blue-600',
+
+  const getTextColor = (): string => {
+    if (variant === 'outline') {
+      return colors.primary;
+    }
+    return 'white';
   };
-  const disabledClasses = 'opacity-50';
+
+  const getBorderColor = (): string => {
+    if (variant === 'outline') {
+      return colors.primary;
+    }
+    return 'transparent';
+  };
+
+  const getIndicatorColor = (): string => {
+    if (variant === 'outline') {
+      return colors.primary;
+    }
+    return 'white';
+  };
+
+  const handlePress = () => {
+    if (!disabled && !loading) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      onPress();
+    }
+  };
 
   return (
     <TouchableOpacity
-      onPress={onPress}
+      onPress={handlePress}
       disabled={disabled || loading}
-      className={`${baseClasses} ${variantClasses[variant]} ${disabled || loading ? disabledClasses : ''} ${className}`}
       activeOpacity={0.7}
+      style={[
+        styles.button,
+        {
+          backgroundColor: getBackgroundColor(),
+          borderColor: getBorderColor(),
+          borderWidth: variant === 'outline' ? 2 : 0,
+          opacity: disabled || loading ? 0.5 : 1,
+        },
+      ]}
+      className={className}
+      accessibilityRole="button"
+      accessibilityState={{ disabled: disabled || loading }}
     >
       {loading ? (
-        <ActivityIndicator color={variant === 'outline' ? '#2563eb' : '#ffffff'} />
+        <ActivityIndicator color={getIndicatorColor()} />
       ) : (
-        <Text className={`font-semibold text-base ${textVariantClasses[variant]}`}>{title}</Text>
+        <Text
+          style={[
+            styles.text,
+            {
+              color: getTextColor(),
+            },
+          ]}
+        >
+          {title}
+        </Text>
       )}
     </TouchableOpacity>
   );
 }
+
+const styles = StyleSheet.create({
+  button: {
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 44,
+    minWidth: 44,
+  },
+  text: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+});
 

@@ -6,9 +6,9 @@ import {
   TextInput,
   TouchableOpacity,
   ActivityIndicator,
-  Alert,
   Platform,
 } from "react-native";
+import { useToast } from "@/hooks/useToast";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { useTranslation } from "react-i18next";
@@ -22,6 +22,7 @@ import {
 import { companyAPI, Department, Position } from "@/services/api/company";
 import { employeeAPI } from "@/services/api/employees";
 import { useThemeStore } from "@/store/theme-store";
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { getColors } from "@/theme/colors";
 
 const EMPLOYMENT_TYPES = [
@@ -62,6 +63,9 @@ export default function JobFormScreen() {
   const [departments, setDepartments] = useState<Department[]>([]);
   const [positions, setPositions] = useState<Position[]>([]);
   const [employees, setEmployees] = useState<any[]>([]);
+  const toast = useToast();
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
 
   const [formData, setFormData] = useState({
     title: "",
@@ -73,10 +77,6 @@ export default function JobFormScreen() {
     vacancies: "1",
     employmentType: "",
     experienceLevel: "",
-    skills: "",
-    minExperience: "",
-    maxExperience: "",
-    educationLevel: "",
     applicationDeadline: "",
     location: "",
     departmentId: "",
@@ -89,10 +89,10 @@ export default function JobFormScreen() {
     type:
       | "employmentType"
       | "experienceLevel"
-      | "educationLevel"
       | "department"
       | "position"
       | "hiringManager"
+      | "deadline"
       | null;
   }>({ type: null });
 
@@ -131,10 +131,6 @@ export default function JobFormScreen() {
           vacancies: jobData.vacancies?.toString() || "1",
           employmentType: jobData.employmentType || "",
           experienceLevel: jobData.experienceLevel || "",
-          skills: jobData.skills || "",
-          minExperience: jobData.minExperience?.toString() || "",
-          maxExperience: jobData.maxExperience?.toString() || "",
-          educationLevel: jobData.educationLevel || "",
           applicationDeadline: jobData.applicationDeadline
             ? new Date(jobData.applicationDeadline).toISOString().split("T")[0]
             : "",
@@ -147,42 +143,98 @@ export default function JobFormScreen() {
       }
     } catch (error) {
       console.error("Error loading data:", error);
-      Alert.alert(tCommon("error"), t("failedToLoadData"));
+      toast.error(t("failedToLoadData"));
       router.back();
     } finally {
       setLoading(false);
     }
   };
 
+  const validateField = (field: string, value: string): string => {
+    switch (field) {
+      case "title":
+        if (!value.trim()) {
+          return t("titleRequired");
+        }
+        return "";
+      case "description":
+        if (!value.trim()) {
+          return t("descriptionRequired");
+        }
+        return "";
+      case "departmentId":
+        if (!value) {
+          return t("departmentRequired");
+        }
+        return "";
+      case "positionId":
+        if (!value) {
+          return t("positionRequired");
+        }
+        return "";
+      case "applicationDeadline":
+        if (!value) {
+          return t("applicationDeadlineRequired");
+        }
+        return "";
+      default:
+        return "";
+    }
+  };
+
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
+    
+    if (touched[field]) {
+      const error = validateField(field, value);
+      setErrors((prev) => ({ ...prev, [field]: error }));
+    }
+  };
+
+  const handleBlur = (field: string) => {
+    setTouched((prev) => ({ ...prev, [field]: true }));
+    const error = validateField(field, formData[field as keyof typeof formData]);
+    setErrors((prev) => ({ ...prev, [field]: error }));
   };
 
   const handleSelect = (type: string, value: string) => {
     handleInputChange(type, value);
     setShowDropdown({ type: null });
+    if (touched[type]) {
+      const error = validateField(type, value);
+      setErrors((prev) => ({ ...prev, [type]: error }));
+    }
   };
 
   const validateForm = (): boolean => {
-    if (!formData.title.trim()) {
-      Alert.alert(t("validationError"), t("titleRequired"));
+    const newErrors: Record<string, string> = {};
+    const fieldsToValidate = ["title", "description", "departmentId", "positionId", "applicationDeadline"];
+    
+    fieldsToValidate.forEach((field) => {
+      const error = validateField(field, formData[field as keyof typeof formData]);
+      if (error) {
+        newErrors[field] = error;
+      }
+    });
+
+    setErrors(newErrors);
+    setTouched(
+      fieldsToValidate.reduce((acc, field) => {
+        acc[field] = true;
+        return acc;
+      }, {} as Record<string, boolean>)
+    );
+
+    if (Object.keys(newErrors).length > 0) {
+      const firstError = Object.values(newErrors)[0];
+      toast.error(firstError);
       return false;
     }
-    if (!formData.description.trim()) {
-      Alert.alert(t("validationError"), t("descriptionRequired"));
-      return false;
-    }
-    if (!formData.departmentId) {
-      Alert.alert(t("validationError"), t("departmentRequired"));
-      return false;
-    }
-    if (!formData.positionId) {
-      Alert.alert(t("validationError"), t("positionRequired"));
-      return false;
-    }
-    if (!formData.applicationDeadline) {
-      Alert.alert(t("validationError"), t("applicationDeadlineRequired"));
-      return false;
+
+    if (Number(formData.salaryMin) > Number(formData.salaryMax) && Number(formData.salaryMax) > 0) {
+        toast.error(t('salaryMinGreaterThanMax'));
+        setErrors(prev => ({ ...prev, salaryMin: t('salaryRangeError') }));
+        return false;
     }
     return true;
   };
@@ -203,10 +255,6 @@ export default function JobFormScreen() {
         vacancies: Number(formData.vacancies) || 1,
         employmentType: formData.employmentType,
         experienceLevel: formData.experienceLevel,
-        skills: formData.skills.trim(),
-        minExperience: Number(formData.minExperience) || 0,
-        maxExperience: Number(formData.maxExperience) || 0,
-        educationLevel: formData.educationLevel,
         applicationDeadline: formData.applicationDeadline,
         location: formData.location.trim(),
         departmentId: Number(formData.departmentId),
@@ -220,12 +268,12 @@ export default function JobFormScreen() {
           status: formData.status,
         };
         await recruitmentAPI.updateJobPosting(Number(params.id), updateData);
-        Alert.alert(tCommon("success"), t("jobUpdatedSuccessfully"));
+        toast.success(t("jobUpdatedSuccessfully"));
       } else {
         const createData: CreateJobPostingRequest =
           baseData as CreateJobPostingRequest;
         const newJob = await recruitmentAPI.createJobPosting(createData);
-        Alert.alert(tCommon("success"), t("jobCreatedSuccessfully"));
+        toast.success(t("jobCreatedSuccessfully"));
         router.replace(`/recruitment/jobs/detail?id=${newJob.jobPostingId}`);
         return;
       }
@@ -237,7 +285,7 @@ export default function JobFormScreen() {
         error?.response?.data?.message ||
         error?.message ||
         t("failedToSaveJob");
-      Alert.alert(tCommon("error"), errorMessage);
+      toast.error(errorMessage);
     } finally {
       setSaving(false);
     }
@@ -312,7 +360,7 @@ export default function JobFormScreen() {
         className="rounded-lg px-4 py-3"
         style={{
           backgroundColor: colors.surface,
-          borderColor: colors.border,
+          borderColor: errors[field] ? colors.error : colors.border,
           borderWidth: 1,
           color: colors.text,
           textAlignVertical: multiline ? "top" : "center",
@@ -323,10 +371,19 @@ export default function JobFormScreen() {
         placeholderTextColor={colors.textTertiary}
         value={value}
         onChangeText={(text) => handleInputChange(field, text)}
+        onBlur={() => handleBlur(field)}
         multiline={multiline}
         numberOfLines={multiline ? 4 : 1}
         keyboardType={keyboardType}
       />
+      {errors[field] && (
+        <Text
+          className="text-sm mt-1"
+          style={{ color: colors.error }}
+        >
+          {errors[field]}
+        </Text>
+      )}
     </View>
   );
 
@@ -360,7 +417,13 @@ export default function JobFormScreen() {
         }}
       >
         <View className="flex-row items-center justify-between mb-3">
-          <TouchableOpacity onPress={() => router.back()}>
+          <TouchableOpacity 
+            onPress={() => router.back()}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            style={{ minWidth: 44, minHeight: 44, justifyContent: 'center', alignItems: 'center' }}
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
+          >
             <Ionicons name="arrow-back" size={24} color={colors.text} />
           </TouchableOpacity>
           <Text className="text-xl font-bold" style={{ color: colors.text }}>
@@ -542,74 +605,6 @@ export default function JobFormScreen() {
             )}
           </View>
 
-          <View className="flex-row gap-3">
-            <View className="flex-1">
-              {renderFormField(
-                t("minExperience"),
-                "minExperience",
-                formData.minExperience,
-                "0",
-                false,
-                "numeric"
-              )}
-            </View>
-            <View className="flex-1">
-              {renderFormField(
-                t("maxExperience"),
-                "maxExperience",
-                formData.maxExperience,
-                "0",
-                false,
-                "numeric"
-              )}
-            </View>
-          </View>
-
-          {/* Education Level */}
-          <View className="mb-4">
-            <Text
-              className="text-sm font-semibold mb-2"
-              style={{ color: colors.text }}
-            >
-              {t("educationLevel")}
-            </Text>
-            <TouchableOpacity
-              onPress={() => setShowDropdown({ type: "educationLevel" })}
-              className="rounded-lg px-4 py-3 flex-row items-center justify-between border"
-              style={{
-                backgroundColor: colors.surface,
-                borderColor: colors.border,
-              }}
-            >
-              <Text
-                style={{
-                  color: formData.educationLevel
-                    ? colors.text
-                    : colors.textTertiary,
-                }}
-              >
-                {formData.educationLevel || t("selectEducationLevel")}
-              </Text>
-              <Ionicons
-                name="chevron-down"
-                size={20}
-                color={colors.textSecondary}
-              />
-            </TouchableOpacity>
-            {renderDropdown(
-              "educationLevel",
-              EDUCATION_LEVELS,
-              formData.educationLevel
-            )}
-          </View>
-
-          {renderFormField(
-            t("skills"),
-            "skills",
-            formData.skills,
-            t("enterRequiredSkills"),
-            true
-          )}
         </View>
 
         {/* Organization */}
@@ -633,11 +628,16 @@ export default function JobFormScreen() {
               {t("department")} *
             </Text>
             <TouchableOpacity
-              onPress={() => setShowDropdown({ type: "department" })}
+              onPress={() => {
+                setShowDropdown({ type: "department" });
+                if (!touched.departmentId) {
+                  setTouched((prev) => ({ ...prev, departmentId: true }));
+                }
+              }}
               className="rounded-lg px-4 py-3 flex-row items-center justify-between border"
               style={{
                 backgroundColor: colors.surface,
-                borderColor: colors.border,
+                borderColor: errors.departmentId ? colors.error : colors.border,
               }}
             >
               <Text
@@ -659,6 +659,14 @@ export default function JobFormScreen() {
                 color={colors.textSecondary}
               />
             </TouchableOpacity>
+            {errors.departmentId && (
+              <Text
+                className="text-sm mt-1"
+                style={{ color: colors.error }}
+              >
+                {errors.departmentId}
+              </Text>
+            )}
             {renderDropdown(
               "department",
               departments,
@@ -676,11 +684,16 @@ export default function JobFormScreen() {
               {t("position")} *
             </Text>
             <TouchableOpacity
-              onPress={() => setShowDropdown({ type: "position" })}
+              onPress={() => {
+                setShowDropdown({ type: "position" });
+                if (!touched.positionId) {
+                  setTouched((prev) => ({ ...prev, positionId: true }));
+                }
+              }}
               className="rounded-lg px-4 py-3 flex-row items-center justify-between border"
               style={{
                 backgroundColor: colors.surface,
-                borderColor: colors.border,
+                borderColor: errors.positionId ? colors.error : colors.border,
               }}
             >
               <Text
@@ -702,6 +715,14 @@ export default function JobFormScreen() {
                 color={colors.textSecondary}
               />
             </TouchableOpacity>
+            {errors.positionId && (
+              <Text
+                className="text-sm mt-1"
+                style={{ color: colors.error }}
+              >
+                {errors.positionId}
+              </Text>
+            )}
             {renderDropdown(
               "position",
               positions,
@@ -772,21 +793,40 @@ export default function JobFormScreen() {
             >
               {t("applicationDeadline")} *
             </Text>
-            <TextInput
-              className="rounded-lg px-4 py-3 border"
+            <TouchableOpacity
+              onPress={() => setShowDropdown({ type: 'deadline' })}
+              className="rounded-lg px-4 py-3 border flex-row justify-between items-center"
               style={{
                 backgroundColor: colors.surface,
-                borderColor: colors.border,
+                borderColor: errors.applicationDeadline ? colors.error : colors.border,
                 borderWidth: 1,
-                color: colors.text,
               }}
-              placeholder="YYYY-MM-DD"
-              placeholderTextColor={colors.textTertiary}
-              value={formData.applicationDeadline}
-              onChangeText={(text) =>
-                handleInputChange("applicationDeadline", text)
-              }
-            />
+            >
+              <Text style={{ color: formData.applicationDeadline ? colors.text : colors.textTertiary }}>
+                 {formData.applicationDeadline || "YYYY-MM-DD"}
+              </Text>
+              <Ionicons name="calendar-outline" size={20} color={colors.textSecondary} />
+            </TouchableOpacity>
+            {showDropdown.type === 'deadline' && (
+              <DateTimePicker
+                value={formData.applicationDeadline ? new Date(formData.applicationDeadline) : new Date()}
+                mode="date"
+                display="default"
+                onChange={(event, date) => {
+                    setShowDropdown({ type: null });
+                    if (date) {
+                        handleInputChange("applicationDeadline", date.toISOString().split('T')[0]);
+                    }
+                }}
+                minimumDate={new Date()}
+              />
+            )}
+            {errors.applicationDeadline && (
+              <Text className="text-sm mt-1" style={{ color: colors.error }}>
+                {errors.applicationDeadline}
+              </Text>
+            )}
+
           </View>
 
           {isEdit && (
@@ -830,11 +870,16 @@ export default function JobFormScreen() {
         <TouchableOpacity
           onPress={handleSubmit}
           disabled={saving}
-          className="px-6 py-4 rounded-lg mb-6"
+          className="rounded-lg mb-6 items-center justify-center"
           style={{
             backgroundColor: saving ? colors.textTertiary : colors.primary,
             opacity: saving ? 0.5 : 1,
+            minHeight: 44,
+            paddingHorizontal: 24,
+            paddingVertical: 12,
           }}
+          accessibilityRole="button"
+          accessibilityState={{ disabled: saving }}
         >
           {saving ? (
             <View className="flex-row items-center justify-center">

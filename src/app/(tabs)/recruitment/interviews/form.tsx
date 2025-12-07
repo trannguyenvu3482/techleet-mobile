@@ -6,7 +6,6 @@ import {
   TextInput,
   TouchableOpacity,
   ActivityIndicator,
-  Alert,
   Switch,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -27,6 +26,7 @@ import { companyAPI, Headquarter } from '@/services/api/company';
 import { reminderService } from '@/services/reminders';
 import { useThemeStore } from '@/store/theme-store';
 import { getColors } from '@/theme/colors';
+import { useToast } from '@/hooks/useToast';
 
 export default function InterviewFormScreen() {
   const router = useRouter();
@@ -48,6 +48,8 @@ export default function InterviewFormScreen() {
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [selectedInterviewers, setSelectedInterviewers] = useState<number[]>([]);
   const [reminderMinutes, setReminderMinutes] = useState<number>(60);
+  const toast = useToast();
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   const [formData, setFormData] = useState({
     candidateId: 0,
@@ -115,7 +117,7 @@ export default function InterviewFormScreen() {
       }
     } catch (error) {
       console.error('Error loading data:', error);
-      Alert.alert(tCommon('error'), t('failedToLoadFormData'));
+      toast.error(t('failedToLoadFormData'));
       router.back();
     } finally {
       setLoading(false);
@@ -163,29 +165,33 @@ export default function InterviewFormScreen() {
   };
 
   const validateForm = (): boolean => {
+    const newErrors: Record<string, string> = {};
+    
     if (formData.candidateId === 0) {
-      Alert.alert(t('validationError'), t('pleaseSelectCandidate'));
-      return false;
+      newErrors.candidateId = t('pleaseSelectCandidate');
     }
     if (formData.jobId === 0) {
-      Alert.alert(t('validationError'), t('pleaseSelectJob'));
-      return false;
+      newErrors.jobId = t('pleaseSelectJob');
     }
     if (selectedInterviewers.length === 0) {
-      Alert.alert(t('validationError'), t('pleaseSelectInterviewer'));
-      return false;
+      newErrors.interviewers = t('pleaseSelectInterviewer');
     }
     if (formData.duration < 15 || formData.duration > 480) {
-      Alert.alert(t('validationError'), t('durationRangeError'));
-      return false;
+      newErrors.duration = t('durationRangeError');
     }
     if (formData.interviewType === 'offline' && !formData.location.trim()) {
-      Alert.alert(t('validationError'), t('pleaseProvideLocation'));
-      return false;
+      newErrors.location = t('pleaseProvideLocation');
     }
     const scheduledDateTime = formData.scheduledTime;
     if (scheduledDateTime < new Date()) {
-      Alert.alert(t('validationError'), t('cannotSchedulePast'));
+      newErrors.scheduledTime = t('cannotSchedulePast');
+    }
+    
+    setErrors(newErrors);
+    
+    if (Object.keys(newErrors).length > 0) {
+      const firstError = Object.values(newErrors)[0];
+      toast.error(firstError);
       return false;
     }
     return true;
@@ -214,7 +220,7 @@ export default function InterviewFormScreen() {
           notes: formData.notes || undefined,
         };
         const updatedInterview = await recruitmentAPI.updateInterview(Number(params.id), updateData);
-        Alert.alert(tCommon('success'), t('interviewUpdatedSuccess'));
+        toast.success(t('interviewUpdatedSuccess'));
         
         if (updatedInterview && updatedInterview.scheduledAt) {
           const scheduledDate = new Date(updatedInterview.scheduledAt);
@@ -231,22 +237,36 @@ export default function InterviewFormScreen() {
           );
         }
       } else {
-        // Create interview - API might expect candidate_id, job_id format
-        // For now, using the CreateInterviewRequest format but might need adjustment
+        // Create interview
         const createData: any = {
-          applicationId: application?.applicationId || 0,
-          interviewerUserId: selectedInterviewers[0], // API might need array, adjust if needed
+          applicationId: application?.applicationId,
+          interviewerUserId: selectedInterviewers[0],
           scheduledAt: scheduledDateTime,
           duration: formData.duration,
           location: formData.interviewType === 'offline' ? formData.location : undefined,
           meetingUrl: formData.interviewType === 'online' ? meetingLink : undefined,
           notes: formData.notes || undefined,
         };
-        // Try direct API call if format differs
-        // await recruitmentAPI.createInterview(createData);
-        Alert.alert(tCommon('info'), t('createInterviewApiNeeded'));
-        router.back();
-        return;
+        
+        const newInterview = await recruitmentAPI.createInterview(createData);
+        toast.success(t('interviewCreatedSuccess'));
+        
+        // Schedule reminder if needed
+        if (newInterview && newInterview.scheduledAt) {
+          const scheduledDate = new Date(newInterview.scheduledAt);
+          const candidateName = application?.candidate
+            ? `${application.candidate.firstName} ${application.candidate.lastName}`
+            : undefined;
+          const jobTitle = application?.jobPosting?.title;
+            
+          await reminderService.scheduleReminder(
+            newInterview.interviewId,
+            scheduledDate,
+            reminderMinutes,
+            candidateName,
+            jobTitle
+          );
+        }
       }
 
       router.back();
@@ -254,7 +274,7 @@ export default function InterviewFormScreen() {
       console.error('Error saving interview:', error);
       const errorMessage =
         error?.response?.data?.message || error?.message || t('failedToSaveInterview');
-      Alert.alert(tCommon('error'), errorMessage);
+      toast.error(errorMessage);
     } finally {
       setSaving(false);
     }

@@ -1,10 +1,10 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { View, Text, TextInput, TouchableOpacity, FlatList, RefreshControl, ActivityIndicator, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { useProtectedRoute } from '@/hooks';
-import { JobCard, SelectionToolbar, ProgressModal, DateRangePicker, FilterPresetsModal } from '@/components/ui';
+import { JobCard, SelectionToolbar, ProgressModal, DateRangePicker, FilterPresetsModal, JobCardSkeleton, EmptyState } from '@/components/ui';
 import { BulkOperations, BulkOperationProgress } from '@/utils/bulk-operations';
 import { JobPostingDto } from '@/types/recruitment';
 import { recruitmentAPI } from '@/services/api';
@@ -14,6 +14,7 @@ import { filterPresetsService, FilterPreset } from '@/services/filter-presets';
 import { shareService } from '@/utils/share';
 import { useThemeStore } from '@/store/theme-store';
 import { getColors } from '@/theme/colors';
+import { FilterBottomSheet, FilterSection } from '@/components/common/FilterBottomSheet';
 
 export default function RecruitmentScreen() {
   useProtectedRoute();
@@ -25,6 +26,7 @@ export default function RecruitmentScreen() {
   const colors = getColors(isDark);
   const [jobs, setJobs] = useState<JobPostingDto[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -52,6 +54,8 @@ export default function RecruitmentScreen() {
       if (!append) {
         setError(null);
         setLoading(true);
+      } else {
+        setLoadingMore(true);
       }
       const params: any = {
         page,
@@ -96,9 +100,10 @@ export default function RecruitmentScreen() {
       setError(t('failedToLoadJobs'));
     } finally {
       setLoading(false);
+      setLoadingMore(false);
       setRefreshing(false);
     }
-  }, [page, sortBy, sortOrder, employmentTypeFilter, experienceLevelFilter]);
+  }, [page, sortBy, sortOrder, employmentTypeFilter, experienceLevelFilter, dateRange]);
 
   React.useEffect(() => {
     if (page === 0) {
@@ -106,16 +111,16 @@ export default function RecruitmentScreen() {
     } else {
       fetchJobs(searchTerm || undefined, statusFilter, true);
     }
-  }, [page, searchTerm, statusFilter, sortBy, sortOrder, employmentTypeFilter, experienceLevelFilter, fetchJobs]);
+  }, [page, searchTerm, statusFilter, sortBy, sortOrder, employmentTypeFilter, experienceLevelFilter, dateRange, fetchJobs]);
 
   const onRefresh = () => {
     setRefreshing(true);
     setPage(0);
-    fetchJobs(searchTerm || undefined, statusFilter, false);
+    // fetchJobs triggered by effect
   };
 
   const handleLoadMore = () => {
-    if (jobs.length < total && !loading) {
+    if (jobs.length < total && !loading && !loadingMore) {
       setPage((prev) => prev + 1);
     }
   };
@@ -129,27 +134,12 @@ export default function RecruitmentScreen() {
   React.useEffect(() => {
     const timeoutId = setTimeout(() => {
       if (page === 0) {
-        fetchJobs(searchTerm || undefined, statusFilter, false);
+         // This effect is redundant because query params change triggers the main effect
+         // But we keep it if we want to delay the state update of searchTerm itself or its effect
       }
     }, 500);
     return () => clearTimeout(timeoutId);
   }, [searchTerm]);
-
-  const handleFilterChange = (newFilter: string) => {
-    setStatusFilter(newFilter);
-    setPage(0);
-    fetchJobs(searchTerm || undefined, newFilter, false);
-  };
-
-  const handleEmploymentTypeFilterChange = (newFilter: string) => {
-    setEmploymentTypeFilter(newFilter);
-    setPage(0);
-  };
-
-  const handleExperienceLevelFilterChange = (newFilter: string) => {
-    setExperienceLevelFilter(newFilter);
-    setPage(0);
-  };
 
   const handleSortChange = (field: 'createdAt' | 'title') => {
     if (sortBy === field) {
@@ -250,7 +240,6 @@ export default function RecruitmentScreen() {
               setSelectedJobs(new Set());
               setSelectionMode(false);
               setPage(0);
-              fetchJobs(searchTerm || undefined, statusFilter, false);
             } catch (error) {
               console.error('Error deleting jobs:', error);
               setShowProgressModal(false);
@@ -328,7 +317,6 @@ export default function RecruitmentScreen() {
               setSelectedJobs(new Set());
               setSelectionMode(false);
               setPage(0);
-              fetchJobs(searchTerm || undefined, statusFilter, false);
             } catch (error) {
               console.error('Error publishing jobs:', error);
               setShowProgressModal(false);
@@ -372,7 +360,6 @@ export default function RecruitmentScreen() {
               setSelectedJobs(new Set());
               setSelectionMode(false);
               setPage(0);
-              fetchJobs(searchTerm || undefined, statusFilter, false);
             } catch (error) {
               console.error('Error closing jobs:', error);
               setShowProgressModal(false);
@@ -408,7 +395,7 @@ export default function RecruitmentScreen() {
     if (filters.sortBy) setSortBy(filters.sortBy);
     if (filters.sortOrder) setSortOrder(filters.sortOrder);
     if (filters.dateRange) setDateRange(filters.dateRange);
-    fetchJobs(searchTerm || undefined, filters.status || 'all', false);
+    setPage(0);
   };
 
   const handleSavePreset = async (name: string) => {
@@ -436,323 +423,151 @@ export default function RecruitmentScreen() {
     }
   };
 
-  const renderEmpty = () => (
-    <View className="items-center justify-center py-12">
-      <Ionicons name="briefcase-outline" size={64} color={colors.textTertiary} />
-      <Text className="text-lg font-semibold mt-4" style={{ color: colors.textSecondary }}>{t('noJobs')}</Text>
-      <Text className="mt-2" style={{ color: colors.textTertiary }}>{t('addJob')}</Text>
-    </View>
-  );
+  const resetFilters = () => {
+    setStatusFilter('all');
+    setEmploymentTypeFilter('all');
+    setExperienceLevelFilter('all');
+    setDateRange({ startDate: null, endDate: null });
+    setPage(0);
+  };
 
-  if (loading && jobs.length === 0) {
-    return (
-      <View className="flex-1" style={{ backgroundColor: colors.background, paddingTop: insets.top }}>
-        <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color={colors.primary} />
-          <Text className="mt-4" style={{ color: colors.textSecondary }}>{t('loadingJobs')}</Text>
+  const activeFiltersCount = useMemo(() => {
+    let count = 0;
+    if (statusFilter !== 'all') count++;
+    if (employmentTypeFilter !== 'all') count++;
+    if (experienceLevelFilter !== 'all') count++;
+    if (dateRange.startDate || dateRange.endDate) count++;
+    return count;
+  }, [statusFilter, employmentTypeFilter, experienceLevelFilter, dateRange]);
+
+  const renderHeader = () => (
+    <>
+    <View className="px-4 pt-4 pb-2 border-b" style={{ backgroundColor: colors.surface, borderBottomColor: colors.border }}>
+      <View className="flex-row items-center mb-3">
+        <Text className="text-2xl font-bold flex-1" style={{ color: colors.text }}>{t('title')}</Text>
+        <View className="flex-row gap-2">
+          {!selectionMode ? (
+            <>
+              <TouchableOpacity 
+                onPress={() => setSelectionMode(true)}
+                className="rounded-lg items-center justify-center"
+                style={{ 
+                  backgroundColor: colors.purple,
+                  minWidth: 44,
+                  minHeight: 44,
+                  paddingHorizontal: 12,
+                  paddingVertical: 12,
+                }}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Ionicons name="checkbox-outline" size={20} color="white" />
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => setShowFilters(true)}
+                className="rounded-lg items-center justify-center relative p-3"
+                style={{ backgroundColor: colors.card }}
+              >
+                <Ionicons name="filter-outline" size={20} color={activeFiltersCount > 0 ? colors.primary : colors.textSecondary} />
+                {activeFiltersCount > 0 && (
+                  <View className="absolute top-2 right-2 w-2 h-2 rounded-full bg-red-500" />
+                )}
+              </TouchableOpacity>
+              <TouchableOpacity 
+                onPress={() => router.push('/recruitment/jobs/form')}
+                className="rounded-lg items-center justify-center"
+                style={{ 
+                  backgroundColor: colors.primary,
+                  minHeight: 44,
+                  paddingHorizontal: 16,
+                  paddingVertical: 12,
+                }}
+              >
+                <Text className="text-white font-semibold">{t('addJob')}</Text>
+              </TouchableOpacity>
+            </>
+          ) : null}
         </View>
       </View>
+
+      {/* Quick Navigation */}
+      <View className="flex-row gap-2 mb-3 flex-wrap">
+        <TouchableOpacity
+          onPress={() => router.push('/recruitment/applications/index')}
+          className="flex-1 min-w-[30%] bg-orange-50 px-3 py-2 rounded-lg border border-orange-200"
+        >
+          <View className="flex-row items-center justify-center">
+            <Ionicons name="document-text-outline" size={18} color="#f97316" />
+            <Text className="text-sm font-semibold text-orange-600 ml-2">{t('applications')}</Text>
+          </View>
+        </TouchableOpacity>
+        
+        <TouchableOpacity
+          onPress={() => router.push('/recruitment/candidates/index')}
+          className="flex-1 min-w-[30%] bg-green-50 px-3 py-2 rounded-lg border border-green-200"
+        >
+          <View className="flex-row items-center justify-center">
+            <Ionicons name="people-outline" size={18} color="#10b981" />
+            <Text className="text-sm font-semibold text-green-600 ml-2">{t('candidates')}</Text>
+          </View>
+        </TouchableOpacity>
+        
+        <TouchableOpacity
+          onPress={() => router.push('/recruitment/interviews/calendar')}
+          className="flex-1 min-w-[30%] bg-blue-50 px-3 py-2 rounded-lg border border-blue-200"
+        >
+           <View className="flex-row items-center justify-center">
+            <Ionicons name="calendar-outline" size={18} color="#2563eb" />
+            <Text className="text-sm font-semibold text-blue-600 ml-2">{t('interviews')}</Text>
+          </View>
+        </TouchableOpacity>
+      </View>
+
+      {/* Search Bar */}
+      <View className="relative mb-3">
+        <Ionicons
+          name="search-outline"
+          size={20}
+          color={colors.textSecondary}
+          style={{ position: 'absolute', left: 12, top: 12 }}
+        />
+        <TextInput
+          className="rounded-lg pl-10 pr-4 py-3"
+          placeholder={t('searchJobs')}
+          placeholderTextColor={colors.textTertiary}
+          value={searchTerm}
+          onChangeText={handleSearch}
+          style={{ backgroundColor: colors.card, color: colors.text }}
+        />
+      </View>
+    </View>
+    </>
+  );
+
+  const renderEmpty = () => {
+    if (loading && jobs.length === 0) return null;
+    return (
+        <EmptyState
+            icon="briefcase-outline"
+            title={t('noJobs')}
+            description={t('addJob')}
+            actionLabel={t('createJob')}
+            onAction={() => router.push('/recruitment/jobs/form')}
+        />
     );
-  }
+  };
+
+  const LoadingView = () => (
+      <View className="flex-1 px-4 mt-2">
+         {renderHeader()}
+         {Array.from({ length: 6 }).map((_, index) => (
+            <JobCardSkeleton key={index} />
+          ))}
+      </View>
+    );
 
   return (
     <View className="flex-1" style={{ backgroundColor: colors.background, paddingTop: insets.top }}>
-      {/* Header */}
-      <View className="px-4 pt-4 pb-2 border-b" style={{ backgroundColor: colors.surface, borderBottomColor: colors.border }}>
-        <View className="flex-row items-center mb-3">
-          <Text className="text-2xl font-bold flex-1" style={{ color: colors.text }}>{t('title')}</Text>
-          <View className="flex-row gap-2">
-            {!selectionMode ? (
-              <>
-                <TouchableOpacity 
-                  onPress={() => setSelectionMode(true)}
-                  className="px-3 py-2 rounded-lg"
-                  style={{ backgroundColor: colors.purple }}
-                >
-                  <Ionicons name="checkbox-outline" size={18} color="white" />
-                </TouchableOpacity>
-                <TouchableOpacity 
-                  onPress={handleExport}
-                  className="px-3 py-2 rounded-lg"
-                  style={{ backgroundColor: colors.secondary }}
-                >
-                  <Ionicons name="download-outline" size={18} color="white" />
-                </TouchableOpacity>
-                <TouchableOpacity 
-                  onPress={() => router.push('/recruitment/jobs/form')}
-                  className="px-4 py-2 rounded-lg"
-                  style={{ backgroundColor: colors.primary }}
-                >
-                  <Text className="text-white font-semibold">{t('addJob')}</Text>
-                </TouchableOpacity>
-              </>
-            ) : null}
-          </View>
-        </View>
-
-        {/* Quick Navigation */}
-        <View className="flex-row gap-2 mb-3 flex-wrap">
-          <TouchableOpacity
-            onPress={() => router.push('/recruitment/applications/index')}
-            className="flex-1 min-w-[30%] bg-orange-50 px-3 py-2 rounded-lg border border-orange-200"
-          >
-            <View className="flex-row items-center justify-center">
-              <Ionicons name="document-text-outline" size={18} color="#f97316" />
-              <Text className="text-sm font-semibold text-orange-600 ml-2">{t('applications')}</Text>
-            </View>
-          </TouchableOpacity>
-          
-          <TouchableOpacity
-            onPress={() => router.push('/recruitment/interviews/calendar')}
-            className="flex-1 min-w-[30%] bg-blue-50 px-3 py-2 rounded-lg border border-blue-200"
-          >
-            <View className="flex-row items-center justify-center">
-              <Ionicons name="calendar-outline" size={18} color="#2563eb" />
-              <Text className="text-sm font-semibold text-blue-600 ml-2">{t('interviews')}</Text>
-            </View>
-          </TouchableOpacity>
-          
-          <TouchableOpacity
-            onPress={() => router.push('/recruitment/interviews/requests')}
-            className="flex-1 min-w-[30%] bg-purple-50 px-3 py-2 rounded-lg border border-purple-200"
-          >
-            <View className="flex-row items-center justify-center">
-              <Ionicons name="person-add-outline" size={18} color="#8b5cf6" />
-              <Text className="text-sm font-semibold text-purple-600 ml-2">{t('interviews')}</Text>
-            </View>
-          </TouchableOpacity>
-          
-          <TouchableOpacity
-            onPress={() => router.push('/recruitment/candidates/index')}
-            className="flex-1 min-w-[30%] bg-green-50 px-3 py-2 rounded-lg border border-green-200"
-          >
-            <View className="flex-row items-center justify-center">
-              <Ionicons name="people-outline" size={18} color="#10b981" />
-              <Text className="text-sm font-semibold text-green-600 ml-2">{t('candidates')}</Text>
-            </View>
-          </TouchableOpacity>
-          
-          <TouchableOpacity
-            onPress={() => router.push('/recruitment/questions/index')}
-            className="flex-1 min-w-[30%] bg-indigo-50 px-3 py-2 rounded-lg border border-indigo-200"
-          >
-            <View className="flex-row items-center justify-center">
-              <Ionicons name="help-circle-outline" size={18} color="#6366f1" />
-              <Text className="text-sm font-semibold text-indigo-600 ml-2">{t('questions')}</Text>
-            </View>
-          </TouchableOpacity>
-          
-          <TouchableOpacity
-            onPress={() => router.push('/recruitment/question-sets')}
-            className="flex-1 min-w-[30%] bg-pink-50 px-3 py-2 rounded-lg border border-pink-200"
-          >
-            <View className="flex-row items-center justify-center">
-              <Ionicons name="folder-outline" size={18} color="#ec4899" />
-              <Text className="text-sm font-semibold text-pink-600 ml-2">{t('questionSets')}</Text>
-            </View>
-          </TouchableOpacity>
-          
-          <TouchableOpacity
-            onPress={() => router.push('/recruitment/reports')}
-            className="flex-1 min-w-[30%] bg-amber-50 px-3 py-2 rounded-lg border border-amber-200"
-          >
-            <View className="flex-row items-center justify-center">
-              <Ionicons name="analytics-outline" size={18} color="#f59e0b" />
-              <Text className="text-sm font-semibold text-amber-600 ml-2">{t('reports')}</Text>
-            </View>
-          </TouchableOpacity>
-        </View>
-
-        {/* Search Bar */}
-        <View className="relative mb-3">
-          <Ionicons
-            name="search-outline"
-            size={20}
-            color={colors.textSecondary}
-            style={{ position: 'absolute', left: 12, top: 12 }}
-          />
-          <TextInput
-            className="rounded-lg pl-10 pr-4 py-3"
-            placeholder={t('searchJobs')}
-            placeholderTextColor={colors.textTertiary}
-            value={searchTerm}
-            onChangeText={handleSearch}
-            style={{ backgroundColor: colors.card, color: colors.text }}
-          />
-        </View>
-
-        {/* Filters Toggle */}
-        <View className="flex-row gap-2 mb-2">
-          <TouchableOpacity
-            onPress={() => setShowFilters(!showFilters)}
-            className="flex-1 flex-row items-center justify-between px-4 py-3 rounded-lg"
-            style={{ backgroundColor: colors.card }}
-          >
-            <View className="flex-row items-center">
-              <Ionicons name="filter-outline" size={18} color={colors.textSecondary} />
-              <Text className="text-sm font-semibold ml-2" style={{ color: colors.text }}>{t('filters')}</Text>
-              {(statusFilter !== 'all' || employmentTypeFilter !== 'all' || experienceLevelFilter !== 'all' || sortBy !== 'createdAt' || dateRange.startDate || dateRange.endDate) && (
-                <View className="ml-2 rounded-full px-2 py-0.5" style={{ backgroundColor: colors.primary }}>
-                  <Text className="text-xs text-white font-semibold">{t('filters.active')}</Text>
-                </View>
-              )}
-            </View>
-            <Ionicons
-              name={showFilters ? 'chevron-up' : 'chevron-down'}
-              size={20}
-              color={colors.textSecondary}
-            />
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => setShowPresetsModal(true)}
-            className="px-4 py-3 rounded-lg"
-            style={{ backgroundColor: colors.purple }}
-          >
-            <Ionicons name="bookmark-outline" size={18} color="white" />
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={handleExportFilters}
-            className="px-4 py-3 rounded-lg"
-            style={{ backgroundColor: colors.secondary }}
-          >
-            <Ionicons name="download-outline" size={18} color="white" />
-          </TouchableOpacity>
-        </View>
-
-        {/* Filters & Sort Options (Collapsible) */}
-        {showFilters && (
-          <View className="rounded-lg p-3 mb-2 border" style={{ backgroundColor: colors.surface, borderColor: colors.border }}>
-            {/* Date Range Picker */}
-            <View className="mb-3">
-              <DateRangePicker
-                value={dateRange}
-                onChange={setDateRange}
-                label="Date Range"
-                placeholder="Filter by date range"
-              />
-            </View>
-
-            {/* Status Filter */}
-            <View className="mb-3">
-              <Text className="text-xs font-semibold mb-2" style={{ color: colors.text }}>{tCommon('filter')}:</Text>
-              <View className="flex-row gap-2 flex-wrap">
-                {['all', 'draft', 'published', 'closed'].map((filter) => (
-                  <TouchableOpacity
-                    key={filter}
-                    onPress={() => handleFilterChange(filter)}
-                    className="px-3 py-2 rounded-lg"
-                    style={{
-                      backgroundColor: statusFilter === filter ? colors.primary : colors.card,
-                    }}
-                  >
-                    <Text
-                      className="text-xs font-semibold"
-                      style={{
-                        color: statusFilter === filter ? 'white' : colors.textSecondary,
-                      }}
-                    >
-                      {filter === 'all' ? t('filters.all') : t(`status.${filter}`)}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-
-            {/* Employment Type Filter */}
-            <View className="mb-3">
-              <Text className="text-xs font-semibold mb-2" style={{ color: colors.text }}>{tCommon('filter')}:</Text>
-              <View className="flex-row gap-2 flex-wrap">
-                {['all', 'full-time', 'part-time', 'contract', 'internship'].map((filter) => (
-                  <TouchableOpacity
-                    key={filter}
-                    onPress={() => handleEmploymentTypeFilterChange(filter)}
-                    className="px-3 py-2 rounded-lg"
-                    style={{
-                      backgroundColor: employmentTypeFilter === filter ? colors.secondary : colors.card,
-                    }}
-                  >
-                    <Text
-                      className="text-xs font-semibold"
-                      style={{
-                        color: employmentTypeFilter === filter ? 'white' : colors.textSecondary,
-                      }}
-                    >
-                      {filter === 'all' ? t('filters.all') : filter.charAt(0).toUpperCase() + filter.slice(1).replace('-', ' ')}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-
-            {/* Experience Level Filter */}
-            <View className="mb-3">
-              <Text className="text-xs font-semibold mb-2" style={{ color: colors.text }}>{tCommon('filter')}:</Text>
-              <View className="flex-row gap-2 flex-wrap">
-                {['all', 'entry', 'mid', 'senior', 'executive'].map((filter) => (
-                  <TouchableOpacity
-                    key={filter}
-                    onPress={() => handleExperienceLevelFilterChange(filter)}
-                    className="px-3 py-2 rounded-lg"
-                    style={{
-                      backgroundColor: experienceLevelFilter === filter ? colors.purple : colors.card,
-                    }}
-                  >
-                    <Text
-                      className="text-xs font-semibold"
-                      style={{
-                        color: experienceLevelFilter === filter ? 'white' : colors.textSecondary,
-                      }}
-                    >
-                      {filter === 'all' ? t('filters.all') : filter.charAt(0).toUpperCase() + filter.slice(1)}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-
-            {/* Sort Options */}
-            <View>
-              <Text className="text-xs font-semibold mb-2" style={{ color: colors.text }}>{t('sortBy')}</Text>
-              <View className="flex-row gap-2 flex-wrap">
-                {[
-                  { value: 'createdAt', label: t('sortByOptions.createdAt') },
-                  { value: 'title', label: t('sortByOptions.title') },
-                ].map((option) => (
-                  <TouchableOpacity
-                    key={option.value}
-                    onPress={() => handleSortChange(option.value as 'createdAt' | 'title')}
-                    className="px-3 py-2 rounded-lg"
-                    style={{
-                      backgroundColor: sortBy === option.value ? colors.warning : colors.card,
-                    }}
-                  >
-                    <View className="flex-row items-center">
-                      <Text
-                        className="text-xs font-semibold"
-                        style={{
-                          color: sortBy === option.value ? 'white' : colors.textSecondary,
-                        }}
-                      >
-                        {option.label}
-                      </Text>
-                      {sortBy === option.value && (
-                        <Ionicons
-                          name={sortOrder === 'ASC' ? 'arrow-up' : 'arrow-down'}
-                          size={14}
-                          color="white"
-                          style={{ marginLeft: 4 }}
-                        />
-                      )}
-                    </View>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-          </View>
-        )}
-      </View>
-
-      {/* Selection Toolbar */}
+      
       {selectionMode && (
         <SelectionToolbar
           selectedCount={selectedJobs.size}
@@ -763,6 +578,43 @@ export default function RecruitmentScreen() {
           onBulkExport={handleBulkExport}
           onBulkStatusUpdate={handleBulkStatusUpdate}
           onCancel={handleCancelSelection}
+        />
+      )}
+
+      {loading && page === 0 ? <LoadingView /> : (
+        <FlatList
+            ListHeaderComponent={renderHeader}
+            data={jobs}
+            renderItem={({ item }) => (
+            <JobCard
+                job={item}
+                onPress={() => handleJobPress(item)}
+                onEdit={() => handleEdit(item)}
+                selected={selectedJobs.has(item.jobPostingId)}
+                onSelect={() => handleToggleSelection(item.jobPostingId)}
+                selectionMode={selectionMode}
+            />
+            )}
+            keyExtractor={(item) => item.jobPostingId.toString()}
+            contentContainerStyle={{ paddingBottom: 80, flexGrow: 1 }}
+            ListEmptyComponent={renderEmpty}
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+            removeClippedSubviews={true}
+            initialNumToRender={10}
+            maxToRenderPerBatch={10}
+            windowSize={10}
+            updateCellsBatchingPeriod={50}
+            onEndReached={handleLoadMore}
+            onEndReachedThreshold={0.5}
+            ListFooterComponent={
+                 loadingMore ? (
+                    <View className="py-4 items-center">
+                        <ActivityIndicator size="small" color={colors.primary} />
+                    </View>
+                ) : (
+                    <View className="h-4" /> 
+                )
+            }
         />
       )}
 
@@ -777,45 +629,113 @@ export default function RecruitmentScreen() {
         }}
       />
 
-      {/* Jobs List */}
-      <FlatList
-        data={jobs}
-        renderItem={({ item }) => (
-          <JobCard
-            job={item}
-            onPress={() => handleJobPress(item)}
-            onEdit={() => handleEdit(item)}
-            selected={selectedJobs.has(item.jobPostingId)}
-            onSelect={() => handleToggleSelection(item.jobPostingId)}
-            selectionMode={selectionMode}
-          />
-        )}
-        keyExtractor={(item) => item.jobPostingId.toString()}
-        contentContainerStyle={{ padding: 16, flexGrow: 1 }}
-        ListEmptyComponent={renderEmpty}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-        ListFooterComponent={
-          jobs.length < total && jobs.length > 0 ? (
-            <View className="py-4">
-              <TouchableOpacity
-                onPress={handleLoadMore}
-                disabled={loading}
-                className="px-4 py-2 rounded-lg items-center"
-                style={{
-                  backgroundColor: colors.primary,
-                  opacity: loading ? 0.5 : 1,
-                }}
-              >
-                {loading ? (
-                  <ActivityIndicator size="small" color="white" />
-                ) : (
-                  <Text className="text-white font-semibold">{t('loadMore')}</Text>
-                )}
-              </TouchableOpacity>
+       <FilterBottomSheet
+        visible={showFilters}
+        onClose={() => setShowFilters(false)}
+        onReset={resetFilters}
+        onApply={() => {
+            setShowFilters(false);
+            setPage(0);
+        }}
+      >
+        {/* Date Range Picker */}
+        <View className="mb-4">
+             <Text className="text-sm font-bold mb-2 ml-1" style={{ color: colors.text }}>{t('dateRange')}</Text>
+             <DateRangePicker
+                value={dateRange}
+                onChange={setDateRange}
+                label=""
+                placeholder={t('selectDateRange')}
+            />
+        </View>
+
+        <FilterSection
+            title={tCommon('status')}
+            selectedValue={statusFilter}
+            onSelect={setStatusFilter}
+            options={[
+              { value: 'all', label: t('filters.all') },
+              { value: 'draft', label: t('status.draft') },
+              { value: 'published', label: t('status.published') },
+              { value: 'closed', label: t('status.closed') },
+            ]}
+        />
+        
+        <FilterSection
+            title={t('employmentType')}
+            selectedValue={employmentTypeFilter}
+            onSelect={setEmploymentTypeFilter}
+            options={[
+              { value: 'all', label: t('filters.all') },
+              { value: 'full-time', label: t('employmentTypes.fullTime') },
+              { value: 'part-time', label: t('employmentTypes.partTime') },
+              { value: 'contract', label: t('employmentTypes.contract') },
+              { value: 'internship', label: t('employmentTypes.internship') },
+            ]}
+        />
+
+         <FilterSection
+            title={t('experienceLevel')}
+            selectedValue={experienceLevelFilter}
+            onSelect={setExperienceLevelFilter}
+            options={[
+              { value: 'all', label: t('filters.all') },
+              { value: 'entry', label: t('experienceLevels.entry') },
+              { value: 'mid', label: t('experienceLevels.mid') },
+              { value: 'senior', label: t('experienceLevels.senior') },
+              { value: 'executive', label: t('experienceLevels.executive') },
+            ]}
+        />
+         
+         <FilterSection
+            title={t('sortBy')}
+            selectedValue={sortBy}
+            onSelect={(val) => setSortBy(val as any)}
+            options={[
+                  { value: 'createdAt', label: t('sortByOptions.createdAt') },
+                  { value: 'title', label: t('sortByOptions.title') },
+            ]}
+         />
+
+        <View className="mt-2">
+            <Text className="text-sm font-bold mb-3" style={{ color: colors.text }}>{t('sortOrder')}</Text>
+            <View className="flex-row gap-3">
+                <TouchableOpacity 
+                    onPress={() => setSortOrder('ASC')}
+                    className={`flex-1 py-3 rounded-lg border items-center ${sortOrder === 'ASC' ? 'bg-primary border-primary' : 'bg-transparent border-gray-200'}`}
+                    style={{ 
+                        backgroundColor: sortOrder === 'ASC' ? colors.primary : 'transparent',
+                        borderColor: sortOrder === 'ASC' ? colors.primary : colors.border 
+                    }}
+                >
+                    <Text style={{ color: sortOrder === 'ASC' ? 'white' : colors.text }}>Ascending</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                    onPress={() => setSortOrder('DESC')}
+                    className={`flex-1 py-3 rounded-lg border items-center ${sortOrder === 'DESC' ? 'bg-primary border-primary' : 'bg-transparent border-gray-200'}`}
+                     style={{ 
+                        backgroundColor: sortOrder === 'DESC' ? colors.primary : 'transparent',
+                        borderColor: sortOrder === 'DESC' ? colors.primary : colors.border 
+                    }}
+                >
+                    <Text style={{ color: sortOrder === 'DESC' ? 'white' : colors.text }}>Descending</Text>
+                </TouchableOpacity>
             </View>
-          ) : null
-        }
-      />
+        </View>
+
+        <TouchableOpacity 
+            onPress={() => {
+                setShowFilters(false);
+                setShowPresetsModal(true);
+            }}
+            className="flex-row items-center justify-center py-3 mt-4 border-t border-gray-100"
+            style={{ borderTopColor: colors.borderLight }}
+        >
+             <Ionicons name="bookmark-outline" size={18} color={colors.primary} />
+            <Text className="ml-2 font-medium" style={{ color: colors.primary }}>{t('managePresets')}</Text>
+        </TouchableOpacity>
+
+      </FilterBottomSheet>
 
       {/* Filter Presets Modal */}
       <FilterPresetsModal
@@ -829,4 +749,3 @@ export default function RecruitmentScreen() {
     </View>
   );
 }
-

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, ActivityIndicator, RefreshControl } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useProtectedRoute } from '@/hooks';
-import { SafeAreaScrollView, StatCard } from '@/components/ui';
+import { SafeAreaScrollView, StatCard, Skeleton } from '@/components/ui';
 import { LineChart, PieChart, BarChart, FunnelChart } from '@/components/ui/charts';
 import { Ionicons } from '@expo/vector-icons';
 import { analyticsAPI, DashboardStats, StatusBreakdown, TrendData, HiringFunnelData, DepartmentStats } from '@/services/api/analytics';
@@ -73,9 +73,17 @@ export default function Dashboard() {
   if (loading) {
     return (
       <SafeAreaScrollView>
-        <View className="flex-1 items-center justify-center min-h-[400px]">
-          <ActivityIndicator size="large" color={colors.primary} />
-          <Text className="mt-4" style={{ color: colors.textSecondary }}>{t('loadingDashboard')}</Text>
+        <View className="p-4">
+          <Skeleton width="60%" height={32} className="mb-6" />
+          <View className="flex-row flex-wrap -mx-2 mb-6">
+            {Array.from({ length: 4 }).map((_, index) => (
+              <View key={index} className="w-1/2 px-2 mb-4">
+                <Skeleton width="100%" height={100} borderRadius={12} />
+              </View>
+            ))}
+          </View>
+          <Skeleton width="40%" height={24} className="mb-4" />
+          <Skeleton width="100%" height={200} borderRadius={12} className="mb-4" />
         </View>
       </SafeAreaScrollView>
     );

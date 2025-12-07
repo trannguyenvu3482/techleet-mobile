@@ -3,7 +3,7 @@ import { View, Text, TextInput, TouchableOpacity, FlatList, RefreshControl, Acti
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useProtectedRoute } from '@/hooks';
-import { SafeAreaScrollView, EmployeeCard } from '@/components/ui';
+import { SafeAreaScrollView, EmployeeCard, EmptyState } from '@/components/ui';
 import { EmployeeResponseDto } from '@/types/employee';
 import { employeeAPI } from '@/services/api';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -99,11 +99,11 @@ export default function EmployeesScreen() {
   );
 
   const renderEmpty = () => (
-    <View className="items-center justify-center py-12">
-      <Ionicons name="people-outline" size={64} color={colors.textTertiary} />
-      <Text className="text-lg font-semibold mt-4" style={{ color: colors.textSecondary }}>{t('noEmployees')}</Text>
-      <Text className="mt-2" style={{ color: colors.textTertiary }}>{t('addEmployees')}</Text>
-    </View>
+    <EmptyState
+      icon="people-outline"
+      title={t('noEmployees')}
+      description={t('addEmployees')}
+    />
   );
 
   if (loading && employees.length === 0) {
@@ -160,6 +160,11 @@ export default function EmployeesScreen() {
         contentContainerStyle={{ padding: 16, flexGrow: 1 }}
         ListEmptyComponent={renderEmpty}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        removeClippedSubviews={true}
+        initialNumToRender={10}
+        maxToRenderPerBatch={10}
+        windowSize={10}
+        updateCellsBatchingPeriod={50}
       />
     </View>
   );

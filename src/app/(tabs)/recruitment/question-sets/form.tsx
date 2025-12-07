@@ -6,7 +6,6 @@ import {
   TextInput,
   TouchableOpacity,
   ActivityIndicator,
-  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -15,6 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { recruitmentAPI, QuestionSet, CreateQuestionSetRequest, UpdateQuestionSetRequest } from '@/services/api/recruitment';
 import { useThemeStore } from '@/store/theme-store';
 import { getColors } from '@/theme/colors';
+import { useToast } from '@/hooks/useToast';
 
 export default function QuestionSetFormScreen() {
   const router = useRouter();
@@ -29,6 +29,9 @@ export default function QuestionSetFormScreen() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [questionSet, setQuestionSet] = useState<QuestionSet | null>(null);
+  const toast = useToast();
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
 
   const [formData, setFormData] = useState({
     title: '',
@@ -53,20 +56,62 @@ export default function QuestionSetFormScreen() {
       }
     } catch (error) {
       console.error('Error loading data:', error);
-      Alert.alert(tCommon('error'), t('failedToLoadQuestionSetData'));
+      toast.error(t('failedToLoadQuestionSetData'));
       router.back();
     } finally {
       setLoading(false);
     }
   };
 
+  const validateField = (field: string, value: string): string => {
+    switch (field) {
+      case 'title':
+        if (!value.trim()) {
+          return t('titleRequired');
+        }
+        return '';
+      default:
+        return '';
+    }
+  };
+
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
+    
+    if (touched[field]) {
+      const error = validateField(field, value);
+      setErrors((prev) => ({ ...prev, [field]: error }));
+    }
+  };
+
+  const handleBlur = (field: string) => {
+    setTouched((prev) => ({ ...prev, [field]: true }));
+    const error = validateField(field, formData[field as keyof typeof formData]);
+    setErrors((prev) => ({ ...prev, [field]: error }));
   };
 
   const validateForm = (): boolean => {
-    if (!formData.title.trim()) {
-      Alert.alert(t('validationError'), t('titleRequired'));
+    const newErrors: Record<string, string> = {};
+    const fieldsToValidate = ['title'];
+    
+    fieldsToValidate.forEach((field) => {
+      const error = validateField(field, formData[field as keyof typeof formData]);
+      if (error) {
+        newErrors[field] = error;
+      }
+    });
+
+    setErrors(newErrors);
+    setTouched(
+      fieldsToValidate.reduce((acc, field) => {
+        acc[field] = true;
+        return acc;
+      }, {} as Record<string, boolean>)
+    );
+
+    if (Object.keys(newErrors).length > 0) {
+      const firstError = Object.values(newErrors)[0];
+      toast.error(firstError);
       return false;
     }
     return true;
@@ -86,22 +131,20 @@ export default function QuestionSetFormScreen() {
           description: formData.description.trim() || undefined,
         };
         await recruitmentAPI.updateQuestionSet(Number(params.id), updateData);
-        Alert.alert(tCommon('success'), t('questionSetUpdatedSuccess'), [
-          { text: tCommon('ok'), onPress: () => router.back() },
-        ]);
+        toast.success(t('questionSetUpdatedSuccess'));
+        router.back();
       } else {
         const createData: CreateQuestionSetRequest = {
           title: formData.title.trim(),
           description: formData.description.trim() || undefined,
         };
         await recruitmentAPI.createQuestionSet(createData);
-        Alert.alert(tCommon('success'), t('questionSetCreatedSuccess'), [
-          { text: tCommon('ok'), onPress: () => router.back() },
-        ]);
+        toast.success(t('questionSetCreatedSuccess'));
+        router.back();
       }
     } catch (error) {
       console.error('Error saving question set:', error);
-      Alert.alert(tCommon('error'), t('failedToSaveQuestionSet'));
+      toast.error(t('failedToSaveQuestionSet'));
     } finally {
       setSaving(false);
     }
@@ -134,16 +177,26 @@ export default function QuestionSetFormScreen() {
           {/* Title Field */}
           <View className="mb-4">
             <Text className="text-sm font-semibold mb-2" style={{ color: colors.text }}>
-              {t('title')} <Text style={{ color: colors.error }}>*</Text>
+              {t('fieldTitle')} <Text style={{ color: colors.error }}>*</Text>
             </Text>
             <TextInput
               placeholder={t('enterQuestionSetTitle')}
               placeholderTextColor={colors.textTertiary}
               value={formData.title}
               onChangeText={(value) => handleInputChange('title', value)}
+              onBlur={() => handleBlur('title')}
               className="p-3 rounded-lg border text-base"
-              style={{ backgroundColor: colors.card, borderColor: colors.border, color: colors.text }}
+              style={{ 
+                backgroundColor: colors.card, 
+                borderColor: errors.title ? colors.error : colors.border, 
+                color: colors.text 
+              }}
             />
+            {errors.title && (
+              <Text className="text-sm mt-1" style={{ color: colors.error }}>
+                {errors.title}
+              </Text>
+            )}
           </View>
 
           {/* Description Field */}
